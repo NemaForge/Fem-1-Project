@@ -119,7 +119,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
     )
 
     fig1 = go.Figure()
-    unique_groups = sorted(plot1_data_for_hover[group_col].unique(), key=lambda x: int(x)) # Sort as int
+    unique_groups = sorted(plot1_data_for_hover[group_col].unique(), key=lambda x: int(x))
 
     for group_name in unique_groups:
         group_df = plot1_data_for_hover[plot1_data_for_hover[group_col] == group_name]
@@ -128,7 +128,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
                 x=group_df[mean_col],
                 y=group_df[std_dev_col],
                 mode='markers',
-                name=f'{group_name}', # Removed "Group" prefix
+                name=f'{group_name}',
                 marker=dict(size=regular_dot_size, color=group_color_map.get(str(group_name), 'lightgray')),
                 hoverinfo='text',
                 text=group_df['Aggregated Hover Text'],
@@ -163,7 +163,8 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         title_font_size=20,
         xaxis_title_font_size=14,
         yaxis_title_font_size=14,
-        xaxis_type='log', # Log scale X-axis
+        xaxis_type='log',
+        yaxis_type='log', # Log scale Y-axis
         width=900,
         height=600,
         legend_title_text='Group'
@@ -174,7 +175,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
 
     st.markdown("---")
 
-    st.subheader(f"{plot_title_prefix}: Group 9 Genes") # Kept "Group 9" in subheader for context
+    st.subheader(f"{plot_title_prefix}: Group 9 Genes")
     st.write(f"This plot focuses on genes within Group 9. Hover over a point to see all overlapping Gene Names and their data.")
 
     group9_data = df_data[df_data[group_col] == '9'].copy()
@@ -223,6 +224,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         xaxis_title_font_size=14,
         yaxis_title_font_size=14,
         xaxis_type='log', # Log scale X-axis
+        yaxis_type='log', # Log scale Y-axis
         width=900,
         height=600
     )
@@ -230,7 +232,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
 
     st.markdown("---")
 
-    st.subheader(f"{plot_title_prefix}: Genes in Groups 8, 9, and 10") # Kept "Groups 8, 9, and 10" for context
+    st.subheader(f"{plot_title_prefix}: Genes in Groups 8, 9, and 10")
     st.write(f"This plot shows genes from the top three groups. Hover over a point to see all overlapping Gene Names and their data.")
 
     selected_groups_data_raw = df_data[df_data[group_col].isin(['8', '9', '10'])].copy()
@@ -256,7 +258,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
     )
 
     fig3 = go.Figure()
-    unique_groups_plot3 = sorted(plot3_data_for_hover[group_col].unique(), key=lambda x: int(x)) # Sort as int
+    unique_groups_plot3 = sorted(plot3_data_for_hover[group_col].unique(), key=lambda x: int(x))
 
     for group_name in unique_groups_plot3:
         group_df = plot3_data_for_hover[plot3_data_for_hover[group_col] == group_name]
@@ -265,7 +267,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
                 x=group_df[mean_col],
                 y=group_df[std_dev_col],
                 mode='markers',
-                name=f'{group_name}', # Removed "Group" prefix
+                name=f'{group_name}',
                 marker=dict(size=regular_dot_size, color=group_color_map.get(str(group_name), 'gray')),
                 hoverinfo='text',
                 text=group_df['Aggregated Hover Text'],
@@ -300,6 +302,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         xaxis_title_font_size=14,
         yaxis_title_font_size=14,
         xaxis_type='log', # Log scale X-axis
+        yaxis_type='log', # Log scale Y-axis
         width=900,
         height=600,
         legend_title_text='Group'
@@ -329,14 +332,14 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
 
     fig_sc = go.Figure()
 
-    for group_name_sc in sorted(df_sorted_by_tpm[group_col].unique(), key=lambda x: int(x)): # Sort as int
+    for group_name_sc in sorted(df_sorted_by_tpm[group_col].unique(), key=lambda x: int(x)):
         group_df_sc = df_sorted_by_tpm[df_sorted_by_tpm[group_col] == group_name_sc]
         if not group_df_sc.empty:
             fig_sc.add_trace(go.Scatter(
                 x=group_df_sc[tpm_col],
                 y=[0] * len(group_df_sc),
                 mode='markers',
-                name=f'{group_name_sc}', # Removed "Group" prefix
+                name=f'{group_name_sc}',
                 marker=dict(size=regular_dot_size, color=group_color_map.get(str(group_name_sc), 'lightgray')),
                 hoverinfo='text',
                 text=[
@@ -372,7 +375,7 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
         font_family="Times New Roman",
         title_font_size=20,
         xaxis_title_font_size=14,
-        xaxis_type='log', # Log scale X-axis
+        xaxis_type='log',
         width=1200,
         height=300,
         legend_title_text='Group'
@@ -602,105 +605,103 @@ def visualizations_page():
 
             fig_comp = go.Figure()
 
-            early_embryo_group_colors = px.colors.qualitative.Plotly
-            single_cell_group_colors = px.colors.qualitative.D3
+            # Define marker symbols for Single-Cell groups (10 distinct symbols)
+            marker_symbols = ['circle', 'square', 'diamond', 'cross', 'x', 'triangle-up', 'triangle-down', 'pentagon', 'hexagon', 'star']
             
+            # Create a combined dataframe for plotting
             plot_data = []
             for idx, row in merged_df_sorted.iterrows():
                 plot_data.append({
                     'gene_name': row['gene_common'],
-                    'expression': row['Mean of Geneid Strains'],
-                    'group': row['Group'],
-                    'dataset': 'Early Embryo'
-                })
-                plot_data.append({
-                    'gene_name': row['gene_common'],
-                    'expression': row['Scaled_TPM'],
-                    'group': row['group number'],
-                    'dataset': selected_comparison_dataset
+                    'early_embryo_expr': row['Mean of Geneid Strains'],
+                    'early_embryo_group': row['Group'],
+                    'single_cell_expr': row['Scaled_TPM'],
+                    'single_cell_group': row['group number']
                 })
             
-            plot_df_combined = pd.DataFrame(plot_data)
-            plot_df_sorted_by_expression = plot_df_combined.sort_values(by='expression').reset_index(drop=True)
+            plot_df_scatter = pd.DataFrame(plot_data)
 
-            for group_val in sorted(plot_df_sorted_by_expression[plot_df_sorted_by_expression['dataset'] == 'Early Embryo']['group'].unique(), key=lambda x: int(x)):
-                subset_df = plot_df_sorted_by_expression[(plot_df_sorted_by_expression['group'] == group_val) & (plot_df_sorted_by_expression['dataset'] == 'Early Embryo')]
-                if not subset_df.empty:
-                    color_idx = int(group_val) % len(early_embryo_group_colors)
-                    current_color = early_embryo_group_colors[color_idx]
-                    
-                    fig_comp.add_trace(go.Scatter(
-                        x=subset_df['expression'],
-                        y=[0] * len(subset_df),
-                        mode='markers',
-                        name=f'{group_val} (Early Embryo)', # Legend entry: Group number (Dataset)
-                        marker=dict(size=regular_dot_size, color=current_color),
-                        hoverinfo='text',
-                        text=[
-                            f"<b>{row['gene_name']}</b><br>Dataset: Early Embryo<br>Expression: {row['expression']:.2f}<br>Group: {row['group']}"
-                            for idx, row in subset_df.iterrows()
-                        ],
-                        hovertemplate='%{text}<extra></extra>'
-                    ))
+            # Plot points, colored by Early Embryo Group, symbol by Single-Cell Group
+            early_embryo_groups_sorted = sorted(plot_df_scatter['early_embryo_group'].unique(), key=lambda x: int(x))
+            single_cell_groups_sorted = sorted(plot_df_scatter['single_cell_group'].unique(), key=lambda x: int(x))
 
-            for group_val in sorted(plot_df_sorted_by_expression[plot_df_sorted_by_expression['dataset'] == selected_comparison_dataset]['group'].unique(), key=lambda x: int(x)):
-                subset_df = plot_df_sorted_by_expression[(plot_df_sorted_by_expression['group'] == group_val) & (plot_df_sorted_by_expression['dataset'] == selected_comparison_dataset)]
-                if not subset_df.empty:
-                    color_idx = int(group_val) % len(single_cell_group_colors)
-                    current_color = single_cell_group_colors[color_idx]
-                    
-                    fig_comp.add_trace(go.Scatter(
-                        x=subset_df['expression'],
-                        y=[0] * len(subset_df),
-                        mode='markers',
-                        name=f'{group_val} ({selected_comparison_dataset})', # Legend entry: Group number (Dataset)
-                        marker=dict(size=regular_dot_size, color=current_color),
-                        hoverinfo='text',
-                        text=[
-                            f"<b>{row['gene_name']}</b><br>Dataset: {row['dataset']}<br>Expression: {row['expression']:.2f}<br>Group: {row['group']}"
-                            for idx, row in subset_df.iterrows()
-                        ],
-                        hovertemplate='%{text}<extra></extra>'
-                    ))
+            # Create color map for Early Embryo groups (10 colors)
+            early_embryo_colors = px.colors.qualitative.Plotly
+            early_embryo_color_map = {str(g): early_embryo_colors[i % len(early_embryo_colors)] for i, g in enumerate(early_embryo_groups_sorted)}
+
+            # Create symbol map for Single-Cell groups (10 symbols)
+            single_cell_symbol_map = {str(g): marker_symbols[i % len(marker_symbols)] for i, g in enumerate(single_cell_groups_sorted)}
+
+            for ee_group in early_embryo_groups_sorted:
+                for sc_group in single_cell_groups_sorted:
+                    subset_df = plot_df_scatter[
+                        (plot_df_scatter['early_embryo_group'] == ee_group) &
+                        (plot_df_scatter['single_cell_group'] == sc_group)
+                    ]
+                    if not subset_df.empty:
+                        trace_name = f'EE Group {ee_group} / SC Group {sc_group}'
+                        
+                        fig_comp.add_trace(go.Scatter(
+                            x=subset_df['early_embryo_expr'],
+                            y=subset_df['single_cell_expr'],
+                            mode='markers',
+                            name=trace_name,
+                            marker=dict(
+                                size=regular_dot_size,
+                                color=early_embryo_color_map.get(str(ee_group), 'gray'),
+                                symbol=single_cell_symbol_map.get(str(sc_group), 'circle')
+                            ),
+                            hoverinfo='text',
+                            text=[
+                                f"<b>{row['gene_name']}</b><br>EE Expr: {row['early_embryo_expr']:.2f} (Group: {row['early_embryo_group']})"
+                                f"<br>SC Expr: {row['single_cell_expr']:.2f} (Group: {row['single_cell_group']})"
+                                for idx, row in subset_df.iterrows()
+                            ],
+                            hovertemplate='%{text}<extra></extra>'
+                        ))
             
+            # Highlight searched gene if found
             if search_gene_comp:
-                highlighted_data = plot_df_sorted_by_expression[plot_df_sorted_by_expression['gene_name'].str.lower() == search_gene_comp.lower()]
+                highlighted_data = plot_df_scatter[plot_df_scatter['gene_name'].str.lower() == search_gene_comp.lower()]
                 if not highlighted_data.empty:
                     for idx, row in highlighted_data.iterrows():
                         fig_comp.add_trace(go.Scatter(
-                            x=[row['expression']],
-                            y=[0],
+                            x=[row['early_embryo_expr']],
+                            y=[row['single_cell_expr']],
                             mode='markers',
                             showlegend=False,
                             marker=dict(
                                 size=fem1_dot_size * 2,
                                 color='cyan',
-                                symbol='circle',
+                                symbol='circle', # Use a consistent symbol for highlight
                                 line=dict(width=3, color='darkblue')
                             ),
                             hoverinfo='text',
                             text=[
-                                f"<b>{row['gene_name']}</b><br>Dataset: {row['dataset']}<br>Expression: {row['expression']:.2f}<br>Group: {row['group']}<br>HIGHLIGHTED"
+                                f"<b>{row['gene_name']}</b><br>EE Expr: {row['early_embryo_expr']:.2f} (Group: {row['early_embryo_group']})"
+                                f"<br>SC Expr: {row['single_cell_expr']:.2f} (Group: {row['single_cell_group']})"
+                                f"<br>HIGHLIGHTED"
                             ],
                             hovertemplate='%{text}<extra></extra>'
                         ))
 
             fig_comp.update_layout(
                 title=f'Gene Expression Comparison: Early Embryo vs. {selected_comparison_dataset}',
-                xaxis_title='Expression Value',
-                yaxis_title='',
-                yaxis_showticklabels=False,
+                xaxis_title='Early Embryo: Mean of Geneid Strains',
+                yaxis_title=f'{selected_comparison_dataset}: Scaled TPM',
                 font_family="Times New Roman",
                 title_font_size=20,
                 xaxis_title_font_size=14,
+                yaxis_title_font_size=14,
                 xaxis_type='log', # Log scale X-axis
-                width=1200,
-                height=400,
+                yaxis_type='log', # Log scale Y-axis
+                width=900,
+                height=700,
                 hovermode='closest',
-                legend_title_text='Group (Dataset)'
+                legend_title_text='EE Group / SC Group Symbol' # Updated legend title
             )
             st.plotly_chart(fig_comp)
-            st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">This plot compares the expression values of genes common to both "Early Embryo" and "{selected_comparison_dataset}" datasets. Each point represents a gene\'s expression in one dataset, color-coded by its group. Standard deviation is not shown.</p>', unsafe_allow_html=True)
+            st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">This plot compares the expression values of genes common to both "Early Embryo" and "{selected_comparison_dataset}" datasets. Points are colored by their Early Embryo group and shaped by their Single-Cell group. Standard deviation is not shown.</p>', unsafe_allow_html=True)
             
             if removed_gene_name_comp:
                 st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_comp}</b> (Expression: {removed_expr_value_comp:.2f} in {removed_dataset_comp}) was removed to improve plot clarity as it was the single highest outlier across both datasets.</p>', unsafe_allow_html=True)
@@ -731,7 +732,7 @@ def raw_data_page():
 
     data_source_option = st.radio(
         "Select Data Source:",
-        ("Early Embryo (AnalysisFile2.txt)", "Single-Cell Processed Data"), # Changed "Original Data" to "Early Embryo"
+        ("Early Embryo (AnalysisFile2.txt)", "Single-Cell Processed Data"),
         key="data_source_radio"
     )
 
@@ -739,11 +740,11 @@ def raw_data_page():
     gene_col_name = ""
     mean_col_name = ""
 
-    if data_source_option == "Early Embryo (AnalysisFile2.txt)": # Changed "Original Data" to "Early Embryo"
+    if data_source_option == "Early Embryo (AnalysisFile2.txt)":
         current_df = df_original
         gene_col_name = 'Gene Name'
         mean_col_name = 'Mean of Geneid Strains'
-        st.subheader("Early Embryo Data Overview") # Changed "Original Data" to "Early Embryo"
+        st.subheader("Early Embryo Data Overview")
         st.dataframe(current_df, use_container_width=True)
     else:
         if not single_cell_dataframes:
@@ -787,7 +788,7 @@ def raw_data_page():
                 if gene_name_query:
                     search_result = current_df[current_df[gene_col_name].str.lower() == gene_name_query.lower()]
                     if not search_result.empty:
-                        st.subheader(f"Results for {gene_name_query} (in {data_source_option.split('(')[0].strip()} - {selected_single_cell_dataset if data_source_option == 'Single-Cell Processed Data' else 'Early Embryo'}):") # Changed "Original" to "Early Embryo"
+                        st.subheader(f"Results for {gene_name_query} (in {data_source_option.split('(')[0].strip()} - {selected_single_cell_dataset if data_source_option == 'Single-Cell Processed Data' else 'Early Embryo'}):")
                         st.dataframe(search_result, use_container_width=True)
                     else:
                         st.warning(f"No gene found with the name '{gene_name_query}'. Please check the spelling.")
