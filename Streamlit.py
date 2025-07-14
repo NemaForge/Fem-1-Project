@@ -12,9 +12,12 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-input_file_path = r"C:\Users\sauri\OneDrive\Desktop\Fem-1 Project\AnalysisFile2.txt"
+# --- File Paths Configuration (UPDATED TO RELATIVE PATHS) ---
+# Assuming AnalysisFile2.txt is in the root of the GitHub repository
+input_file_path = "AnalysisFile2.txt"
 
-SINGLE_CELL_OUTPUT_DIRECTORY = r"C:\Users\sauri\OneDrive\Desktop\Fem-1 Project\Single Cell Analayis Files"
+# Assuming Single Cell Analayis Files folder is in the root of the GitHub repository
+SINGLE_CELL_OUTPUT_DIRECTORY = "Single Cell Analayis Files"
 
 SINGLE_CELL_FILES_DISPLAY_MAP = {
     "Mature sperm": "finalMatureSperm.txt",
@@ -36,7 +39,7 @@ def load_original_data(path):
         df_loaded['Group'] = df_loaded['Group'].astype(str)
         return df_loaded
     except FileNotFoundError:
-        st.error(f"Error: Original data file not found at {path}. Please ensure the file exists.")
+        st.error(f"Error: Original data file not found at {path}. Please ensure the file exists in your repository.")
         st.stop()
     except Exception as e:
         st.error(f"Error loading original data: {e}")
@@ -55,7 +58,7 @@ def load_single_cell_dataframes():
             df_sc.dropna(inplace=True)
             single_cell_dfs[display_name] = df_sc
         except FileNotFoundError:
-            st.warning(f"Single-cell file not found: {filename}. It will not be available in the dropdown.")
+            st.warning(f"Single-cell file not found: {filename} in {SINGLE_CELL_OUTPUT_DIRECTORY}. It will not be available in the dropdown. Please ensure the file exists in your repository.")
         except Exception as e:
             st.error(f"Error loading single-cell data '{filename}': {e}")
     return single_cell_dfs
@@ -566,7 +569,6 @@ def visualizations_page():
                 st.warning(f"No common genes found between 'Early Embryo' and '{selected_comparison_dataset}' for comparison.")
                 return
 
-            # Find the largest outlier across both expression columns in merged_df_sorted
             max_early_embryo_expr = merged_df_sorted['Mean of Geneid Strains'].max()
             max_single_cell_expr = merged_df_sorted['Scaled_TPM'].max()
 
