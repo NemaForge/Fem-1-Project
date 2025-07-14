@@ -12,12 +12,8 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- File Paths Configuration (UPDATED TO RELATIVE PATHS) ---
-# Assuming AnalysisFile2.txt is in the root of the GitHub repository
 input_file_path = "AnalysisFile2.txt"
 
-# Assuming Single Cell Analayis Files folder is in the root of the GitHub repository
-# UPDATED: Set to empty string as files are directly in the root
 SINGLE_CELL_OUTPUT_DIRECTORY = ""
 
 SINGLE_CELL_FILES_DISPLAY_MAP = {
@@ -50,11 +46,10 @@ def load_original_data(path):
 def load_single_cell_dataframes():
     single_cell_dfs = {}
     for display_name, filename in SINGLE_CELL_FILES_DISPLAY_MAP.items():
-        # Corrected file_path construction for files in root
         if SINGLE_CELL_OUTPUT_DIRECTORY:
             file_path = os.path.join(SINGLE_CELL_OUTPUT_DIRECTORY, filename)
         else:
-            file_path = filename # Files are directly in the root
+            file_path = filename
             
         try:
             df_sc = pd.read_csv(file_path, sep='\t')
@@ -124,7 +119,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
     )
 
     fig1 = go.Figure()
-    unique_groups = sorted(plot1_data_for_hover[group_col].unique(), key=lambda x: str(x))
+    unique_groups = sorted(plot1_data_for_hover[group_col].unique(), key=lambda x: int(x)) # Sort as int
 
     for group_name in unique_groups:
         group_df = plot1_data_for_hover[plot1_data_for_hover[group_col] == group_name]
@@ -133,7 +128,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
                 x=group_df[mean_col],
                 y=group_df[std_dev_col],
                 mode='markers',
-                name=f'{group_col} {group_name}',
+                name=f'{group_name}', # Removed "Group" prefix
                 marker=dict(size=regular_dot_size, color=group_color_map.get(str(group_name), 'lightgray')),
                 hoverinfo='text',
                 text=group_df['Aggregated Hover Text'],
@@ -147,7 +142,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
                 f"<b>{fem1_data_plot1[gene_col].iloc[0]}</b>"
                 f"<br>{mean_col}: {float(fem1_data_plot1[mean_col].iloc[0]):.2f}"
                 f"<br>{std_dev_col}: {float(fem1_data_plot1[std_dev_col].iloc[0]):.2f}"
-                f"<br>{group_col}: {fem1_data_plot1[group_col].iloc[0]}"
+                f"<br>Group: {fem1_data_plot1[group_col].iloc[0]}"
             )
             fig1.add_trace(go.Scatter(
                 x=fem1_data_plot1[mean_col],
@@ -168,9 +163,10 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         title_font_size=20,
         xaxis_title_font_size=14,
         yaxis_title_font_size=14,
+        xaxis_type='log', # Log scale X-axis
         width=900,
         height=600,
-        legend_title_text=group_col
+        legend_title_text='Group'
     )
     st.plotly_chart(fig1)
     if removed_gene_name_plot1:
@@ -178,8 +174,8 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
 
     st.markdown("---")
 
-    st.subheader(f"{plot_title_prefix}: {group_col} 9 Genes")
-    st.write(f"This plot focuses on genes within {group_col} 9. Hover over a point to see all overlapping Gene Names and their data.")
+    st.subheader(f"{plot_title_prefix}: Group 9 Genes") # Kept "Group 9" in subheader for context
+    st.write(f"This plot focuses on genes within Group 9. Hover over a point to see all overlapping Gene Names and their data.")
 
     group9_data = df_data[df_data[group_col] == '9'].copy()
     plot2_data_for_hover = create_aggregated_hover_data_flexible(
@@ -205,7 +201,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
             f"<b>{fem1_in_group9[gene_col].iloc[0]}</b>"
             f"<br>{mean_col}: {float(fem1_in_group9[mean_col].iloc[0]):.2f}"
             f"<br>{std_dev_col}: {float(fem1_in_group9[std_dev_col].iloc[0]):.2f}"
-            f"<br>{group_col}: {fem1_in_group9[group_col].iloc[0]}"
+            f"<br>Group: {fem1_in_group9[group_col].iloc[0]}"
         )
         fig2.add_trace(go.Scatter(
             x=fem1_in_group9[mean_col],
@@ -219,13 +215,14 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         ))
 
     fig2.update_layout(
-        title=f'{plot_title_prefix}: {group_col} 9 Genes: {mean_col} vs {std_dev_col}',
+        title=f'{plot_title_prefix}: Group 9 Genes: {mean_col} vs {std_dev_col}',
         xaxis_title=mean_col,
         yaxis_title=std_dev_col,
         font_family="Times New Roman",
         title_font_size=20,
         xaxis_title_font_size=14,
         yaxis_title_font_size=14,
+        xaxis_type='log', # Log scale X-axis
         width=900,
         height=600
     )
@@ -233,7 +230,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
 
     st.markdown("---")
 
-    st.subheader(f"{plot_title_prefix}: Genes in {group_col}s 8, 9, and 10")
+    st.subheader(f"{plot_title_prefix}: Genes in Groups 8, 9, and 10") # Kept "Groups 8, 9, and 10" for context
     st.write(f"This plot shows genes from the top three groups. Hover over a point to see all overlapping Gene Names and their data.")
 
     selected_groups_data_raw = df_data[df_data[group_col].isin(['8', '9', '10'])].copy()
@@ -259,7 +256,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
     )
 
     fig3 = go.Figure()
-    unique_groups_plot3 = sorted(plot3_data_for_hover[group_col].unique(), key=lambda x: str(x))
+    unique_groups_plot3 = sorted(plot3_data_for_hover[group_col].unique(), key=lambda x: int(x)) # Sort as int
 
     for group_name in unique_groups_plot3:
         group_df = plot3_data_for_hover[plot3_data_for_hover[group_col] == group_name]
@@ -268,7 +265,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
                 x=group_df[mean_col],
                 y=group_df[std_dev_col],
                 mode='markers',
-                name=f'{group_col} {group_name}',
+                name=f'{group_name}', # Removed "Group" prefix
                 marker=dict(size=regular_dot_size, color=group_color_map.get(str(group_name), 'gray')),
                 hoverinfo='text',
                 text=group_df['Aggregated Hover Text'],
@@ -281,7 +278,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
             f"<b>{fem1_in_selected_groups[gene_col].iloc[0]}</b>"
             f"<br>{mean_col}: {float(fem1_in_selected_groups[mean_col].iloc[0]):.2f}"
             f"<br>{std_dev_col}: {float(fem1_in_selected_groups[std_dev_col].iloc[0]):.2f}"
-            f"<br>{group_col}: {fem1_in_selected_groups[group_col].iloc[0]}"
+            f"<br>Group: {fem1_in_selected_groups[group_col].iloc[0]}"
         )
         fig3.add_trace(go.Scatter(
             x=fem1_in_selected_groups[mean_col],
@@ -295,16 +292,17 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         ))
 
     fig3.update_layout(
-        title=f'{plot_title_prefix}: {group_col}s 8, 9, and 10 Genes: {mean_col} vs {std_dev_col}',
+        title=f'{plot_title_prefix}: Groups 8, 9, and 10 Genes: {mean_col} vs {std_dev_col}',
         xaxis_title=mean_col,
         yaxis_title=std_dev_col,
         font_family="Times New Roman",
         title_font_size=20,
         xaxis_title_font_size=14,
         yaxis_title_font_size=14,
+        xaxis_type='log', # Log scale X-axis
         width=900,
         height=600,
-        legend_title_text=group_col
+        legend_title_text='Group'
     )
     st.plotly_chart(fig3)
     if removed_gene_name_plot3:
@@ -331,18 +329,18 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
 
     fig_sc = go.Figure()
 
-    for group_name_sc in sorted(df_sorted_by_tpm[group_col].unique(), key=lambda x: str(x)):
+    for group_name_sc in sorted(df_sorted_by_tpm[group_col].unique(), key=lambda x: int(x)): # Sort as int
         group_df_sc = df_sorted_by_tpm[df_sorted_by_tpm[group_col] == group_name_sc]
         if not group_df_sc.empty:
             fig_sc.add_trace(go.Scatter(
                 x=group_df_sc[tpm_col],
                 y=[0] * len(group_df_sc),
                 mode='markers',
-                name=f'Group {group_name_sc}',
+                name=f'{group_name_sc}', # Removed "Group" prefix
                 marker=dict(size=regular_dot_size, color=group_color_map.get(str(group_name_sc), 'lightgray')),
                 hoverinfo='text',
                 text=[
-                    f"<b>{row[gene_col]}</b><br>{tpm_col}: {float(row[tpm_col]):.2f}<br>{group_col}: {row[group_col]}"
+                    f"<b>{row[gene_col]}</b><br>{tpm_col}: {float(row[tpm_col]):.2f}<br>Group: {row[group_col]}"
                     for idx, row in group_df_sc.iterrows()
                 ],
                 hovertemplate='%{text}<extra></extra>'
@@ -353,7 +351,7 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
         fem1_hover_text_sc = (
             f"<b>{fem1_in_sorted_sc[gene_col].iloc[0]}</b>"
             f"<br>{tpm_col}: {float(fem1_in_sorted_sc[tpm_col].iloc[0]):.2f}"
-            f"<br>{group_col}: {fem1_in_sorted_sc[group_col].iloc[0]}"
+            f"<br>Group: {fem1_in_sorted_sc[group_col].iloc[0]}"
         )
         fig_sc.add_trace(go.Scatter(
             x=fem1_in_sorted_sc[tpm_col],
@@ -374,9 +372,10 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
         font_family="Times New Roman",
         title_font_size=20,
         xaxis_title_font_size=14,
+        xaxis_type='log', # Log scale X-axis
         width=1200,
         height=300,
-        legend_title_text=group_col
+        legend_title_text='Group'
     )
     st.plotly_chart(fig_sc)
     if removed_gene_name_plot_sc:
@@ -624,7 +623,7 @@ def visualizations_page():
             plot_df_combined = pd.DataFrame(plot_data)
             plot_df_sorted_by_expression = plot_df_combined.sort_values(by='expression').reset_index(drop=True)
 
-            for group_val in sorted(plot_df_sorted_by_expression[plot_df_sorted_by_expression['dataset'] == 'Early Embryo']['group'].unique(), key=lambda x: str(x)):
+            for group_val in sorted(plot_df_sorted_by_expression[plot_df_sorted_by_expression['dataset'] == 'Early Embryo']['group'].unique(), key=lambda x: int(x)):
                 subset_df = plot_df_sorted_by_expression[(plot_df_sorted_by_expression['group'] == group_val) & (plot_df_sorted_by_expression['dataset'] == 'Early Embryo')]
                 if not subset_df.empty:
                     color_idx = int(group_val) % len(early_embryo_group_colors)
@@ -634,7 +633,7 @@ def visualizations_page():
                         x=subset_df['expression'],
                         y=[0] * len(subset_df),
                         mode='markers',
-                        name=f'Group {group_val} (Early Embryo)',
+                        name=f'{group_val} (Early Embryo)', # Legend entry: Group number (Dataset)
                         marker=dict(size=regular_dot_size, color=current_color),
                         hoverinfo='text',
                         text=[
@@ -644,7 +643,7 @@ def visualizations_page():
                         hovertemplate='%{text}<extra></extra>'
                     ))
 
-            for group_val in sorted(plot_df_sorted_by_expression[plot_df_sorted_by_expression['dataset'] == selected_comparison_dataset]['group'].unique(), key=lambda x: str(x)):
+            for group_val in sorted(plot_df_sorted_by_expression[plot_df_sorted_by_expression['dataset'] == selected_comparison_dataset]['group'].unique(), key=lambda x: int(x)):
                 subset_df = plot_df_sorted_by_expression[(plot_df_sorted_by_expression['group'] == group_val) & (plot_df_sorted_by_expression['dataset'] == selected_comparison_dataset)]
                 if not subset_df.empty:
                     color_idx = int(group_val) % len(single_cell_group_colors)
@@ -654,7 +653,7 @@ def visualizations_page():
                         x=subset_df['expression'],
                         y=[0] * len(subset_df),
                         mode='markers',
-                        name=f'Group {group_val} ({selected_comparison_dataset})',
+                        name=f'{group_val} ({selected_comparison_dataset})', # Legend entry: Group number (Dataset)
                         marker=dict(size=regular_dot_size, color=current_color),
                         hoverinfo='text',
                         text=[
@@ -694,6 +693,7 @@ def visualizations_page():
                 font_family="Times New Roman",
                 title_font_size=20,
                 xaxis_title_font_size=14,
+                xaxis_type='log', # Log scale X-axis
                 width=1200,
                 height=400,
                 hovermode='closest',
@@ -731,7 +731,7 @@ def raw_data_page():
 
     data_source_option = st.radio(
         "Select Data Source:",
-        ("Original Data (AnalysisFile2.txt)", "Single-Cell Processed Data"),
+        ("Early Embryo (AnalysisFile2.txt)", "Single-Cell Processed Data"), # Changed "Original Data" to "Early Embryo"
         key="data_source_radio"
     )
 
@@ -739,11 +739,11 @@ def raw_data_page():
     gene_col_name = ""
     mean_col_name = ""
 
-    if data_source_option == "Original Data (AnalysisFile2.txt)":
+    if data_source_option == "Early Embryo (AnalysisFile2.txt)": # Changed "Original Data" to "Early Embryo"
         current_df = df_original
         gene_col_name = 'Gene Name'
         mean_col_name = 'Mean of Geneid Strains'
-        st.subheader("Original Data Overview")
+        st.subheader("Early Embryo Data Overview") # Changed "Original Data" to "Early Embryo"
         st.dataframe(current_df, use_container_width=True)
     else:
         if not single_cell_dataframes:
@@ -787,7 +787,7 @@ def raw_data_page():
                 if gene_name_query:
                     search_result = current_df[current_df[gene_col_name].str.lower() == gene_name_query.lower()]
                     if not search_result.empty:
-                        st.subheader(f"Results for {gene_name_query} (in {data_source_option.split('(')[0].strip()} - {selected_single_cell_dataset if data_source_option == 'Single-Cell Processed Data' else 'Original'}):")
+                        st.subheader(f"Results for {gene_name_query} (in {data_source_option.split('(')[0].strip()} - {selected_single_cell_dataset if data_source_option == 'Single-Cell Processed Data' else 'Early Embryo'}):") # Changed "Original" to "Early Embryo"
                         st.dataframe(search_result, use_container_width=True)
                     else:
                         st.warning(f"No gene found with the name '{gene_name_query}'. Please check the spelling.")
