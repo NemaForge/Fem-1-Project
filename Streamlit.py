@@ -17,7 +17,8 @@ st.set_page_config(
 input_file_path = "AnalysisFile2.txt"
 
 # Assuming Single Cell Analayis Files folder is in the root of the GitHub repository
-SINGLE_CELL_OUTPUT_DIRECTORY = "Single Cell Analayis Files"
+# UPDATED: Set to empty string as files are directly in the root
+SINGLE_CELL_OUTPUT_DIRECTORY = ""
 
 SINGLE_CELL_FILES_DISPLAY_MAP = {
     "Mature sperm": "finalMatureSperm.txt",
@@ -49,7 +50,12 @@ def load_original_data(path):
 def load_single_cell_dataframes():
     single_cell_dfs = {}
     for display_name, filename in SINGLE_CELL_FILES_DISPLAY_MAP.items():
-        file_path = os.path.join(SINGLE_CELL_OUTPUT_DIRECTORY, filename)
+        # Corrected file_path construction for files in root
+        if SINGLE_CELL_OUTPUT_DIRECTORY:
+            file_path = os.path.join(SINGLE_CELL_OUTPUT_DIRECTORY, filename)
+        else:
+            file_path = filename # Files are directly in the root
+            
         try:
             df_sc = pd.read_csv(file_path, sep='\t')
             for col in ['Scaled_TPM', 'group number']:
@@ -58,7 +64,7 @@ def load_single_cell_dataframes():
             df_sc.dropna(inplace=True)
             single_cell_dfs[display_name] = df_sc
         except FileNotFoundError:
-            st.warning(f"Single-cell file not found: {filename} in {SINGLE_CELL_OUTPUT_DIRECTORY}. It will not be available in the dropdown. Please ensure the file exists in your repository.")
+            st.warning(f"Single-cell file not found: {filename}. It will not be available in the dropdown. Please ensure the file exists in your repository.")
         except Exception as e:
             st.error(f"Error loading single-cell data '{filename}': {e}")
     return single_cell_dfs
