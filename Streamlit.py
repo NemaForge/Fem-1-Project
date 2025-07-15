@@ -8,7 +8,7 @@ import numpy as np
 # --- Page Configuration (Should be at the very top of your script) ---
 st.set_page_config(
     page_title="Saurish and Xander's Biomart",
-    page_icon="🧬", # Changed to 🧬 as per your new homepage code, but original was 🪱. Kept new.
+    page_icon="🧬",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -168,10 +168,8 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         yaxis_title_font_size=14,
         xaxis_type='log',
         yaxis_type='log',
-        xaxis_tickformat=".0f",
-        yaxis_tickformat=".0f",
-        xaxis_dtick="L1",
-        yaxis_dtick="L1",
+        # Removed xaxis_tickformat and yaxis_tickformat for log scale to auto-format correctly
+        # Removed xaxis_dtick and yaxis_dtick to allow Plotly to choose optimal log ticks
         xaxis_tickangle=90,
         yaxis_tickangle=0,
         width=900,
@@ -234,10 +232,8 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         yaxis_title_font_size=14,
         xaxis_type='log',
         yaxis_type='log',
-        xaxis_tickformat=".0f",
-        yaxis_tickformat=".0f",
-        xaxis_dtick="L1",
-        yaxis_dtick="L1",
+        # Removed xaxis_tickformat and yaxis_tickformat for log scale to auto-format correctly
+        # Removed xaxis_dtick and yaxis_dtick to allow Plotly to choose optimal log ticks
         xaxis_tickangle=90,
         yaxis_tickangle=0,
         width=900,
@@ -318,10 +314,8 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         yaxis_title_font_size=14,
         xaxis_type='log', # Log scale X-axis
         yaxis_type='log', # Log scale Y-axis
-        xaxis_tickformat=".0f", # Full numbers
-        yaxis_tickformat=".0f", # Full numbers
-        xaxis_dtick="L1", # Powers of 10
-        yaxis_dtick="L1", # Powers of 10
+        # Removed xaxis_tickformat and yaxis_tickformat for log scale to auto-format correctly
+        # Removed xaxis_dtick and yaxis_dtick to allow Plotly to choose optimal log ticks
         xaxis_tickangle=90,     # Rotate x-axis labels
         yaxis_tickangle=0,      # Keep y-axis labels horizontal
         width=900,
@@ -397,9 +391,8 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
         title_font_size=20,
         xaxis_title_font_size=14,
         xaxis_type='log',
-        xaxis_tickformat=".0f",
+        # Removed xaxis_tickformat and xaxis_dtick for log scale to auto-format correctly
         xaxis_tickangle=90,
-        xaxis_dtick="L1", # Powers of 10
         width=1200,
         height=300,
         legend_title_text='Group'
@@ -657,13 +650,11 @@ def home_page():
         
         # Raw Data Button with MASSIVE text
         if st.button("📊 Raw Data", key="raw_data"):
-            # st.success("🎉 Redirecting to Raw Data section...") # Removed this line as it's not needed with rerun
             st.session_state.page = "raw_data"
             st.rerun()
             
         # Visualizations Button with MASSIVE text
         if st.button("📈 Visualizations", key="visualizations"):
-            # st.success("🎉 Redirecting to Visualizations section...") # Removed this line as it's not needed with rerun
             st.session_state.page = "visualizations"
             st.rerun()
         
@@ -710,7 +701,7 @@ def home_page():
     """, unsafe_allow_html=True)
 
 
-# --- Existing Page Functions (Unchanged) ---
+# --- Existing Page Functions (Unchanged apart from axis modifications) ---
 def visualizations_page():
     st.header("Gene Expression Visualizations")
     st.write("Explore gene expression patterns through interactive scatter plots.")
@@ -935,10 +926,8 @@ def visualizations_page():
                 yaxis_title_font_size=14,
                 xaxis_type='log',
                 yaxis_type='log',
-                xaxis_tickformat=".0f",
-                yaxis_tickformat=".0f",
-                xaxis_dtick="L1",
-                yaxis_dtick="L1",
+                # Removed xaxis_tickformat and yaxis_tickformat for log scale to auto-format correctly
+                # Removed xaxis_dtick and yaxis_dtick to allow Plotly to choose optimal log ticks
                 xaxis_tickangle=90,
                 yaxis_tickangle=0,
                 width=900,
