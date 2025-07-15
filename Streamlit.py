@@ -5,16 +5,18 @@ import plotly.graph_objects as go
 import os
 import numpy as np
 
+# --- Page Configuration (Should be at the very top of your script) ---
 st.set_page_config(
     page_title="Saurish and Xander's Biomart",
-    page_icon="🪱",
+    page_icon="🧬", # Changed to 🧬 as per your new homepage code, but original was 🪱. Kept new.
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
+# --- Global Data Loading and Constants ---
 input_file_path = "AnalysisFile2.txt"
 
-SINGLE_CELL_OUTPUT_DIRECTORY = ""
+SINGLE_CELL_OUTPUT_DIRECTORY = "" # Keep this as is, assuming files are in the same directory as script
 
 SINGLE_CELL_FILES_DISPLAY_MAP = {
     "Mature sperm": "finalMatureSperm.txt",
@@ -72,6 +74,7 @@ single_cell_dataframes = load_single_cell_dataframes()
 regular_dot_size = 5
 fem1_dot_size = 10
 
+# --- Helper Functions for Plotting ---
 def create_aggregated_hover_data_flexible(df_to_process, gene_col, mean_col, std_dev_col, group_col, round_decimals=3):
     if df_to_process.empty:
         return pd.DataFrame(columns=[mean_col, std_dev_col, group_col, 'Aggregated Hover Text'])
@@ -282,7 +285,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
                 name=f'{group_name}',
                 marker=dict(size=regular_dot_size, color=group_color_map.get(str(group_name), 'gray')),
                 hoverinfo='text',
-                text=group_df['Aggregated Hover Text'],
+                hovertext=group_df['Aggregated Hover Text'],
                 hovertemplate='%{text}<extra></extra>'
             ))
 
@@ -319,8 +322,8 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         yaxis_tickformat=".0f", # Full numbers
         xaxis_dtick="L1", # Powers of 10
         yaxis_dtick="L1", # Powers of 10
-        xaxis_tickangle=90,    # Rotate x-axis labels
-        yaxis_tickangle=0,     # Keep y-axis labels horizontal
+        xaxis_tickangle=90,     # Rotate x-axis labels
+        yaxis_tickangle=0,      # Keep y-axis labels horizontal
         width=900,
         height=600,
         legend_title_text='Group'
@@ -408,93 +411,306 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
     st.markdown("---")
 
 
+# --- New Home Page Function ---
 def home_page():
-    st.markdown(
-        """
-        <style>
-        .stApp {
-            background: #1a1a1a;
-            color: #f0f0f0;
+    # Custom CSS for styling (moved from top to here, specific to home page)
+    st.markdown("""
+    <style>
+        .main > div {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
         }
-        .centered-title {
-            text-align: center;
-            font-family: "Times New Roman", serif;
-            font-size: 4.5em;
-            font-weight: bold;
-            color: #ffffff;
-            padding-top: 120px;
-            padding-bottom: 30px;
-            text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
-        }
-        .subtitle {
-            text-align: center;
-            font-family: "Helvetica", sans-serif;
-            font-size: 1.8em;
-            color: #b0b0b0;
-            margin-bottom: 100px;
-        }
-        .stButton>button {
-            width: 90%;
-            height: 350px;
-            font-size: 3.5em;
-            font-weight: bold;
+        
+        .hero-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2.5rem 2rem;
             border-radius: 20px;
-            border: 3px solid #606060;
+            margin: 1rem auto 2rem auto;
             color: white;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s ease;
-            margin-bottom: 50px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 800px;
+        }
+        
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            text-align: center;
+            line-height: 1.2;
+            transform: translateX(-10px);
+        }
+        
+        .hero-slogan {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            font-style: italic;
+            text-align: center;
+        }
+        
+        /* Override Streamlit button styling completely */
+        div.stButton > button:first-child {
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 25px !important;
+            font-size: 8rem !important;
+            font-weight: bold !important;
+            width: 600px !important;
+            height: 120px !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3) !important;
+            margin: 1rem auto !important;
+            display: block !important;
+            line-height: 0.8 !important;
+            padding: 0 !important;
+        }
+        
+        div.stButton > button:first-child:hover {
+            transform: translateY(-5px) !important;
+            box-shadow: 0 12px 35px rgba(0,0,0,0.4) !important;
+            background: linear-gradient(45deg, #5a6fd8 0%, #6a4190 100%) !important;
+        }
+        
+        div.stButton > button:first-child:active {
+            transform: translateY(-2px) !important;
+        }
+        
+        .button-container {
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
+            gap: 1.5rem;
+            margin: 1rem auto;
+            max-width: 700px;
+        }
+        
+        .side-panel {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 2rem;
+            border-radius: 15px;
+            color: white;
             text-align: center;
-            padding: 15px;
-            background-color: #333333;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            margin: 1rem 0;
+            height: fit-content;
         }
-        .stButton>button:hover {
-            transform: translateY(-10px);
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
-            background-color: #555555;
-            border-color: #ffffff;
+        
+        .side-panel h3 {
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
         }
-        .footer-note {
+        
+        .side-panel p {
+            font-size: 1rem;
+            opacity: 0.9;
+            line-height: 1.4;
+        }
+        
+        .helpful-links {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            padding: 1.5rem;
+            border-radius: 15px;
+            color: #333;
             text-align: center;
-            font-family: "Times New Roman", serif;
-            color: #a0a0a0;
-            margin-top: 100px;
-            font-size: 1.2em;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin: 1rem 0;
         }
-        .stVerticalBlock {
+        
+        .helpful-links h3 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+        
+        .helpful-links a {
+            display: block;
+            color: #667eea;
+            text-decoration: none;
+            margin: 0.5rem 0;
+            font-weight: bold;
+        }
+        
+        .helpful-links a:hover {
+            text-decoration: underline;
+        }
+        
+        .research-objectives {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
+            border-radius: 15px;
+            color: white;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            margin: 1rem 0;
+            height: 520px;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
         }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+        
+        .research-objectives h3 {
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+            text-align: center;
+        }
+        
+        .research-objectives ol {
+            text-align: left;
+            padding-left: 1rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+        }
+        
+        .research-objectives li {
+            margin-bottom: 1.5rem;
+            line-height: 1.4;
+            font-size: 0.95rem;
+        }
+        
+        .floating-emoji {
+            font-size: 3rem;
+            animation: float 3s ease-in-out infinite;
+            display: inline-block;
+            margin: 0.5rem;
+        }
+        
+        .floating-emoji:nth-child(2) {
+            animation-delay: 0.5s;
+        }
+        
+        .floating-emoji:nth-child(3) {
+            animation-delay: 1s;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .footer-section {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-top: 3rem;
+            text-align: center;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .contact-info {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+        
+        .quote-section {
+            font-style: italic;
+            color: #555;
+            font-size: 1rem;
+            border-top: 1px solid #ddd;
+            padding-top: 1rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
-    st.markdown("<h1 class='centered-title'>Welcome to Saurish and Xander's Biomart</h1>", unsafe_allow_html=True)
-    st.markdown("<p class='subtitle'>Science for the better of humanity</p>", unsafe_allow_html=True)
+    # Create three columns for layout
+    left_col, center_col, right_col = st.columns([1, 2, 1])
 
-    st.write("")
+    # Left sidebar content
+    with left_col:
+        st.markdown("""
+        <div class="side-panel">
+            <h3>🔬 Research Focus</h3>
+            <p>To determine the molecular mechanism by which maternal RNA regulates fem-1 expression in C. elegans, with emphasis on how this regulation is influenced by parent-of-origin effects.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="helpful-links">
+            <h3>🔗 Helpful Links</h3>
+            <a href="https://docs.google.com/document/d/1kNxQVg3Y1rGJ9-6C6icEoDH44qDx5zQPyCPlS7HfsiY/edit?usp=sharing" target="_blank">Methods Document</a>
+            <a href="https://37nyza-abbas-ghaddar.shinyapps.io/shiny_webpage/" target="_blank">Single Cell Database</a>
+            <a href="https://www.wormbase.org/" target="_blank">WormBase Database</a>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="floating-emoji">🧪</div>
+        <div class="floating-emoji">⚗️</div>
+        <div class="floating-emoji">🔬</div>
+        """, unsafe_allow_html=True)
 
-    button_col = st.columns(1)[0] 
+    # Center content
+    with center_col:
+        # Hero Section - smaller and pushed up
+        st.markdown("""
+        <div class="hero-section">
+            <div class="hero-title">🧬 Saurish and Xander's<br>Biomart 🔬</div>
+            <div class="hero-slogan">Science for the benefit of humanity</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    with button_col:
-        if st.button("📄 Raw Data", key="btn_raw_data", help="Access and view raw processed data"):
+        st.markdown('<div class="button-container">', unsafe_allow_html=True)
+        
+        # Raw Data Button with MASSIVE text
+        if st.button("📊 Raw Data", key="raw_data"):
+            # st.success("🎉 Redirecting to Raw Data section...") # Removed this line as it's not needed with rerun
             st.session_state.page = "raw_data"
             st.rerun()
-
-        if st.button("📊 Visualizations", key="btn_visualizations", help="Explore interactive gene expression plots"):
+            
+        # Visualizations Button with MASSIVE text
+        if st.button("📈 Visualizations", key="visualizations"):
+            # st.success("🎉 Redirecting to Visualizations section...") # Removed this line as it's not needed with rerun
             st.session_state.page = "visualizations"
             st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("<p class='footer-note'>If you have any questions, email: sarora@rockefeller.edu</p>", unsafe_allow_html=True)
+    # Right sidebar content
+    with right_col:
+        st.markdown("""
+        <div class="research-objectives">
+            <h3>🎯 Research Objectives</h3>
+            <ol>
+                <li>To recapitulate and characterize fem-1–related phenotypes through targeted genetic crosses to confirm parent-of-origin effects.</li>
+                <li>To perform bioinformatic analysis of publicly available datasets to identify other genes exhibiting similar maternal RNA–dependent expression patterns as fem-1.</li>
+                <li>To generate a mutant strain enabling a genetic screen for fem-1 function, allowing selection and analysis of specific genotype combinations.</li>
+            </ol>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="floating-emoji">🧬</div>
+        <div class="floating-emoji">📊</div>
+        <div class="floating-emoji">🔍</div>
+        """, unsafe_allow_html=True)
+
+    # Footer section with contact info and quote
+    st.markdown("""
+    <div class="footer-section">
+        <div class="contact-info">
+            If you have any questions, email <a href="mailto:sarora@rockefeller.edu" style="color: #667eea; text-decoration: none; font-weight: bold;">sarora@rockefeller.edu</a> or text at <a href="tel:+19089302303" style="color: #667eea; text-decoration: none; font-weight: bold;">(908) 930-2303</a>
+        </div>
+        <div class="quote-section">
+            "The good thing about science is that it's true whether or not you believe in it."<br>
+            <small>- Neil deGrasse Tyson</small>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Add some decorative elements
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style="text-align: center; opacity: 0.6;">
+        🧪 ⚗️ 🔬 🧬 📊 📈 🔍 ⚡ 🧫 🔭 ⚛️ 🌡️
+    </div>
+    """, unsafe_allow_html=True)
 
 
+# --- Existing Page Functions (Unchanged) ---
 def visualizations_page():
     st.header("Gene Expression Visualizations")
     st.write("Explore gene expression patterns through interactive scatter plots.")
@@ -877,6 +1093,7 @@ def single_cell_page():
     st.markdown("---")
     st.write("Single-cell analysis content will go here.")
 
+# --- Page Navigation Logic ---
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
