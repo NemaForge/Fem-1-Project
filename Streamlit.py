@@ -167,8 +167,8 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         yaxis_type='log',
         xaxis_tickformat=".0f",
         yaxis_tickformat=".0f",
-        xaxis_dtick="L1", # Powers of 10
-        yaxis_dtick="L1", # Powers of 10
+        xaxis_dtick="L1",
+        yaxis_dtick="L1",
         xaxis_tickangle=90,
         yaxis_tickangle=0,
         width=900,
@@ -233,8 +233,8 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         yaxis_type='log',
         xaxis_tickformat=".0f",
         yaxis_tickformat=".0f",
-        xaxis_dtick="L1", # Powers of 10
-        yaxis_dtick="L1", # Powers of 10
+        xaxis_dtick="L1",
+        yaxis_dtick="L1",
         xaxis_tickangle=90,
         yaxis_tickangle=0,
         width=900,
@@ -317,6 +317,8 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         yaxis_type='log', # Log scale Y-axis
         xaxis_tickformat=".0f", # Full numbers
         yaxis_tickformat=".0f", # Full numbers
+        xaxis_dtick="L1", # Powers of 10
+        yaxis_dtick="L1", # Powers of 10
         xaxis_tickangle=90,    # Rotate x-axis labels
         yaxis_tickangle=0,     # Keep y-axis labels horizontal
         width=900,
@@ -392,8 +394,9 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
         title_font_size=20,
         xaxis_title_font_size=14,
         xaxis_type='log',
-        xaxis_tickformat=".0f", # Full numbers
-        xaxis_tickangle=90,    # Rotate x-axis labels
+        xaxis_tickformat=".0f",
+        xaxis_tickangle=90,
+        xaxis_dtick="L1", # Powers of 10
         width=1200,
         height=300,
         legend_title_text='Group'
@@ -646,7 +649,7 @@ def visualizations_page():
                         x=subset_ee_df['Mean of Geneid Strains'],
                         y=subset_ee_df['Scaled_TPM'],
                         mode='markers',
-                        showlegend=False, # Don't show individual data traces in legend
+                        showlegend=False,
                         marker=dict(
                             size=regular_dot_size,
                             color=point_colors,
@@ -676,7 +679,7 @@ def visualizations_page():
                     x=[None], y=[None],
                     mode='markers',
                     name=f'SC Group {sc_group} (Color)',
-                    marker=dict(size=regular_dot_size, color=single_cell_color_map.get(str(sc_group), 'gray'), symbol='circle'), # Use a default symbol for color legend
+                    marker=dict(size=regular_dot_size, color=single_cell_color_map.get(str(sc_group), 'gray'), symbol='circle'),
                     hoverinfo='none'
                 ))
 
@@ -718,8 +721,8 @@ def visualizations_page():
                 yaxis_type='log',
                 xaxis_tickformat=".0f",
                 yaxis_tickformat=".0f",
-                xaxis_dtick="L1", # Powers of 10
-                yaxis_dtick="L1", # Powers of 10
+                xaxis_dtick="L1",
+                yaxis_dtick="L1",
                 xaxis_tickangle=90,
                 yaxis_tickangle=0,
                 width=900,
