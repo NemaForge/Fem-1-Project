@@ -168,8 +168,14 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         yaxis_title_font_size=14,
         xaxis_type='log',
         yaxis_type='log',
-        # Removed xaxis_tickformat and yaxis_tickformat for log scale to auto-format correctly
-        # Removed xaxis_dtick and yaxis_dtick to allow Plotly to choose optimal log ticks
+        xaxis_exponentformat='power', # Display exponents as powers
+        xaxis_showexponent='all',    # Show exponent for all ticks
+        xaxis_tickformat='e',        # Use scientific notation for tick values, which exponentformat then makes 10^x
+        xaxis_dtick='L1',            # Force ticks at powers of 10
+        yaxis_exponentformat='power',
+        yaxis_showexponent='all',
+        yaxis_tickformat='e',
+        yaxis_dtick='L1',
         xaxis_tickangle=90,
         yaxis_tickangle=0,
         width=900,
@@ -178,7 +184,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
     )
     st.plotly_chart(fig1)
     if removed_gene_name_plot1:
-        st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_plot1}</b> ({mean_col}: {removed_gene_mean_value_plot1:.2f}) was removed to improve plot clarity as it was the single highest outlier in "{mean_col}" across all genes.</p>', unsafe_allow_html=True)
+        st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_plot1}</b> (Mean: {removed_gene_mean_value_plot1:.2f}) was removed to improve plot clarity as it was the single highest outlier in "{mean_col}" across all genes.</p>', unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -232,8 +238,14 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         yaxis_title_font_size=14,
         xaxis_type='log',
         yaxis_type='log',
-        # Removed xaxis_tickformat and yaxis_tickformat for log scale to auto-format correctly
-        # Removed xaxis_dtick and yaxis_dtick to allow Plotly to choose optimal log ticks
+        xaxis_exponentformat='power',
+        xaxis_showexponent='all',
+        xaxis_tickformat='e',
+        xaxis_dtick='L1',
+        yaxis_exponentformat='power',
+        yaxis_showexponent='all',
+        yaxis_tickformat='e',
+        yaxis_dtick='L1',
         xaxis_tickangle=90,
         yaxis_tickangle=0,
         width=900,
@@ -314,8 +326,14 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         yaxis_title_font_size=14,
         xaxis_type='log', # Log scale X-axis
         yaxis_type='log', # Log scale Y-axis
-        # Removed xaxis_tickformat and yaxis_tickformat for log scale to auto-format correctly
-        # Removed xaxis_dtick and yaxis_dtick to allow Plotly to choose optimal log ticks
+        xaxis_exponentformat='power',
+        xaxis_showexponent='all',
+        xaxis_tickformat='e',
+        xaxis_dtick='L1',
+        yaxis_exponentformat='power',
+        yaxis_showexponent='all',
+        yaxis_tickformat='e',
+        yaxis_dtick='L1',
         xaxis_tickangle=90,     # Rotate x-axis labels
         yaxis_tickangle=0,      # Keep y-axis labels horizontal
         width=900,
@@ -324,7 +342,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
     )
     st.plotly_chart(fig3)
     if removed_gene_name_plot3:
-        st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_plot3}</b> ({mean_col}: {removed_gene_mean_value_plot3:.2f}) was removed to improve plot clarity as it was the single highest outlier in "{mean_col}" within {group_col}s 8, 9, and 10.</p>', unsafe_allow_html=True)
+        st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_plot3}</b> (Mean: {removed_gene_mean_value_plot3:.2f}) was removed to improve plot clarity as it was the single highest outlier in "{mean_col}" within {group_col}s 8, 9, and 10.</p>', unsafe_allow_html=True)
 
 
 def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_prefix, gene_col, tpm_col, group_col, group_color_map):
@@ -391,7 +409,10 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
         title_font_size=20,
         xaxis_title_font_size=14,
         xaxis_type='log',
-        # Removed xaxis_tickformat and xaxis_dtick for log scale to auto-format correctly
+        xaxis_exponentformat='power',
+        xaxis_showexponent='all',
+        xaxis_tickformat='e',
+        xaxis_dtick='L1',
         xaxis_tickangle=90,
         width=1200,
         height=300,
@@ -701,7 +722,7 @@ def home_page():
     """, unsafe_allow_html=True)
 
 
-# --- Existing Page Functions (Unchanged apart from axis modifications) ---
+# --- Existing Page Functions (Modified for power of 10 axis labels) ---
 def visualizations_page():
     st.header("Gene Expression Visualizations")
     st.write("Explore gene expression patterns through interactive scatter plots.")
@@ -841,10 +862,6 @@ def visualizations_page():
             single_cell_color_map = {str(g): single_cell_colors[i % len(single_cell_colors)] for i, g in enumerate(range(1, 11))}
 
             # Plot points, colored by Single-Cell Group, symbol by Early Embryo Group
-            early_embryo_groups_sorted = sorted(merged_df_sorted['Group'].unique(), key=lambda x: int(x))
-            single_cell_groups_sorted = sorted(merged_df_sorted['group number'].unique(), key=lambda x: int(x))
-
-            # Add traces for actual data points
             for ee_group in early_embryo_groups_sorted:
                 ee_symbol = marker_symbols_ee[int(ee_group) % len(marker_symbols_ee)]
                 subset_ee_df = merged_df_sorted[merged_df_sorted['Group'] == ee_group]
@@ -926,8 +943,14 @@ def visualizations_page():
                 yaxis_title_font_size=14,
                 xaxis_type='log',
                 yaxis_type='log',
-                # Removed xaxis_tickformat and yaxis_tickformat for log scale to auto-format correctly
-                # Removed xaxis_dtick and yaxis_dtick to allow Plotly to choose optimal log ticks
+                xaxis_exponentformat='power',
+                xaxis_showexponent='all',
+                xaxis_tickformat='e',
+                xaxis_dtick='L1',
+                yaxis_exponentformat='power',
+                yaxis_showexponent='all',
+                yaxis_tickformat='e',
+                yaxis_dtick='L1',
                 xaxis_tickangle=90,
                 yaxis_tickangle=0,
                 width=900,
