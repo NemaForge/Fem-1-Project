@@ -165,10 +165,12 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         yaxis_title_font_size=14,
         xaxis_type='log',
         yaxis_type='log',
-        xaxis_tickformat=".0f", # Full numbers
-        yaxis_tickformat=".0f", # Full numbers
-        xaxis_tickangle=90,    # Rotate x-axis labels
-        yaxis_tickangle=0,     # Keep y-axis labels horizontal
+        xaxis_tickformat=".0f",
+        yaxis_tickformat=".0f",
+        xaxis_dtick="L1", # Powers of 10
+        yaxis_dtick="L1", # Powers of 10
+        xaxis_tickangle=90,
+        yaxis_tickangle=0,
         width=900,
         height=600,
         legend_title_text='Group'
@@ -227,12 +229,14 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         title_font_size=20,
         xaxis_title_font_size=14,
         yaxis_title_font_size=14,
-        xaxis_type='log', # Log scale X-axis
-        yaxis_type='log', # Log scale Y-axis
-        xaxis_tickformat=".0f", # Full numbers
-        yaxis_tickformat=".0f", # Full numbers
-        xaxis_tickangle=90,    # Rotate x-axis labels
-        yaxis_tickangle=0,     # Keep y-axis labels horizontal
+        xaxis_type='log',
+        yaxis_type='log',
+        xaxis_tickformat=".0f",
+        yaxis_tickformat=".0f",
+        xaxis_dtick="L1", # Powers of 10
+        yaxis_dtick="L1", # Powers of 10
+        xaxis_tickangle=90,
+        yaxis_tickangle=0,
         width=900,
         height=600
     )
@@ -623,36 +627,30 @@ def visualizations_page():
             marker_symbols_ee = ['circle', 'square', 'diamond', 'cross', 'x', 'triangle-up', 'triangle-down', 'pentagon', 'hexagon', 'star']
             
             # Create color map for Single-Cell groups (10 colors)
-            single_cell_colors = px.colors.qualitative.D3 # Using D3 for distinctness
+            single_cell_colors = px.colors.qualitative.D3
             single_cell_color_map = {str(g): single_cell_colors[i % len(single_cell_colors)] for i, g in enumerate(range(1, 11))}
 
             # Plot points, colored by Single-Cell Group, symbol by Early Embryo Group
             early_embryo_groups_sorted = sorted(merged_df_sorted['Group'].unique(), key=lambda x: int(x))
             single_cell_groups_sorted = sorted(merged_df_sorted['group number'].unique(), key=lambda x: int(x))
 
+            # Add traces for actual data points
             for ee_group in early_embryo_groups_sorted:
-                # For each Early Embryo group, create a trace
-                # The color will be based on the SC group of each point within this trace
-                # The symbol will be fixed for this EE group's trace
                 ee_symbol = marker_symbols_ee[int(ee_group) % len(marker_symbols_ee)]
-                
-                # Filter for this specific Early Embryo group
                 subset_ee_df = merged_df_sorted[merged_df_sorted['Group'] == ee_group]
 
-                # Add trace for this Early Embryo group
                 if not subset_ee_df.empty:
-                    # Dynamically set color based on single_cell_group for each point
                     point_colors = [single_cell_color_map.get(str(sc_g), 'gray') for sc_g in subset_ee_df['group number']]
 
                     fig_comp.add_trace(go.Scatter(
                         x=subset_ee_df['Mean of Geneid Strains'],
                         y=subset_ee_df['Scaled_TPM'],
                         mode='markers',
-                        name=f'EE Group {ee_group} (Shape: {ee_symbol})', # Legend entry includes shape
+                        showlegend=False, # Don't show individual data traces in legend
                         marker=dict(
                             size=regular_dot_size,
-                            color=point_colors, # Colors based on SC group
-                            symbol=ee_symbol # Shape based on EE group
+                            color=point_colors,
+                            symbol=ee_symbol
                         ),
                         hoverinfo='text',
                         text=[
@@ -663,42 +661,46 @@ def visualizations_page():
                         hovertemplate='%{text}<extra></extra>'
                     ))
             
-            # Add a separate legend-like trace for Single-Cell colors
-            # This is a workaround to show the color mapping in the legend
-            for sc_group in single_cell_groups_sorted:
+            # Create dummy traces for legend: 10 for Early Embryo shapes, 10 for Single-Cell colors
+            for i, ee_group in enumerate(early_embryo_groups_sorted):
                 fig_comp.add_trace(go.Scatter(
-                    x=[None], # No actual data points
-                    y=[None],
+                    x=[None], y=[None],
                     mode='markers',
-                    name=f'SC Group {sc_group} (Color)', # Legend entry for SC color
-                    marker=dict(
-                        size=regular_dot_size,
-                        color=single_cell_color_map.get(str(sc_group), 'gray'),
-                        symbol='circle' # Consistent symbol for color legend
-                    ),
+                    name=f'EE Group {ee_group} (Shape: {marker_symbols_ee[i % len(marker_symbols_ee)]})',
+                    marker=dict(size=regular_dot_size, color='gray', symbol=marker_symbols_ee[i % len(marker_symbols_ee)]),
                     hoverinfo='none'
                 ))
 
+            for i, sc_group in enumerate(single_cell_groups_sorted):
+                fig_comp.add_trace(go.Scatter(
+                    x=[None], y=[None],
+                    mode='markers',
+                    name=f'SC Group {sc_group} (Color)',
+                    marker=dict(size=regular_dot_size, color=single_cell_color_map.get(str(sc_group), 'gray'), symbol='circle'), # Use a default symbol for color legend
+                    hoverinfo='none'
+                ))
+
+
             # Highlight searched gene if found
             if search_gene_comp:
-                highlighted_data = plot_df_scatter[plot_df_scatter['gene_name'].str.lower() == search_gene_comp.lower()]
+                highlighted_data = merged_df_sorted[merged_df_sorted['gene_common'].str.lower() == search_gene_comp.lower()]
                 if not highlighted_data.empty:
                     for idx, row in highlighted_data.iterrows():
                         fig_comp.add_trace(go.Scatter(
-                            x=[row['early_embryo_expr']],
-                            y=[row['single_cell_expr']],
+                            x=[row['Mean of Geneid Strains']],
+                            y=[row['Scaled_TPM']],
                             mode='markers',
                             showlegend=False,
                             marker=dict(
                                 size=fem1_dot_size * 2,
                                 color='cyan',
-                                symbol='star', # Use star for highlight
+                                symbol='star',
                                 line=dict(width=3, color='darkblue')
                             ),
                             hoverinfo='text',
                             text=[
-                                f"<b>{row['gene_name']}</b><br>EE Expr: {row['early_embryo_expr']:.2f} (Group: {row['early_embryo_group']})"
-                                f"<br>SC Expr: {row['single_cell_expr']:.2f} (Group: {row['single_cell_group']})"
+                                f"<b>{row['gene_common']}</b><br>EE Expr: {row['Mean of Geneid Strains']:.2f} (Group: {row['Group']})"
+                                f"<br>SC Expr: {row['Scaled_TPM']:.2f} (Group: {row['group number']})"
                                 f"<br>HIGHLIGHTED"
                             ],
                             hovertemplate='%{text}<extra></extra>'
@@ -716,12 +718,14 @@ def visualizations_page():
                 yaxis_type='log',
                 xaxis_tickformat=".0f",
                 yaxis_tickformat=".0f",
+                xaxis_dtick="L1", # Powers of 10
+                yaxis_dtick="L1", # Powers of 10
                 xaxis_tickangle=90,
                 yaxis_tickangle=0,
                 width=900,
                 height=700,
                 hovermode='closest',
-                legend_title_text='Groupings' # Changed legend title
+                legend_title_text='Groupings'
             )
             st.plotly_chart(fig_comp)
             st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">This plot compares the expression values of genes common to both "Early Embryo" and "{selected_comparison_dataset}" datasets. Points are shaped by their Early Embryo group and colored by their Single-Cell group. Standard deviation is not shown.</p>', unsafe_allow_html=True)
