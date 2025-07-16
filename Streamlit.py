@@ -328,8 +328,8 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         yaxis_exponentformat='power',
         yaxis_showexponent='all',
         yaxis_tickformat='e',
-        xaxis_tickangle=90,     # Rotate x-axis labels
-        yaxis_tickangle=0,      # Keep y-axis labels horizontal
+        xaxis_tickangle=90,       # Rotate x-axis labels
+        yaxis_tickangle=0,        # Keep y-axis labels horizontal
         width=900,
         height=600,
         legend_title_text='Group'
@@ -620,6 +620,30 @@ def home_page():
             border-top: 1px solid #ddd;
             padding-top: 1rem;
         }
+        .main-page-button {
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 25px !important;
+            font-size: 2.5rem !important; /* Adjusted font size for sub-buttons */
+            font-weight: bold !important;
+            width: 400px !important; /* Adjusted width for sub-buttons */
+            height: 80px !important; /* Adjusted height for sub-buttons */
+            transition: all 0.3s ease !important;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3) !important;
+            margin: 1rem auto !important;
+            display: block !important;
+            line-height: 0.8 !important;
+            padding: 0 !important;
+        }
+        .main-page-button:hover {
+            transform: translateY(-5px) !important;
+            box-shadow: 0 12px 35px rgba(0,0,0,0.4) !important;
+            background: linear-gradient(45deg, #5a6fd8 0%, #6a4190 100%) !important;
+        }
+        .main-page-button:active {
+            transform: translateY(-2px) !important;
+        }
     </style>
     """, unsafe_allow_html=True)
 
@@ -662,16 +686,16 @@ def home_page():
 
         st.markdown('<div class="button-container">', unsafe_allow_html=True)
         
-        # Raw Data Button with MASSIVE text
-        if st.button("📊 Raw Data", key="raw_data"):
-            st.session_state.page = "raw_data"
+        # Original Data Button
+        if st.button("📊 Original Data", key="original_data_btn", help="Access raw data tables and visualizations from the initial dataset."):
+            st.session_state.page = "original_data_landing"
             st.rerun()
             
-        # Visualizations Button with MASSIVE text
-        if st.button("📈 Visualizations", key="visualizations"):
-            st.session_state.page = "visualizations"
+        # Processed Data Button
+        if st.button("✨ Processed Data", key="processed_data_btn", help="Explore processed single-cell data."):
+            st.session_state.page = "processed_data_landing"
             st.rerun()
-        
+            
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Right sidebar content
@@ -715,12 +739,56 @@ def home_page():
     """, unsafe_allow_html=True)
 
 
+# --- Intermediate Page for Original Data ---
+def original_data_landing_page():
+    st.header("Original Data: Tables & Visualizations")
+    st.write("Choose how you'd like to explore the early embryo data.")
+
+    if st.button("🏠 Back to Home", key="original_landing_back_home"):
+        st.session_state.page = "home"
+        st.rerun()
+
+    st.markdown("---")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown('<div class="button-container">', unsafe_allow_html=True)
+        if st.button("🔍 View Raw Data Tables", key="view_raw_data_tables", help="Browse the raw 'AnalysisFile2.txt' data.", use_container_width=True):
+            st.session_state.page = "raw_data"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col2:
+        st.markdown('<div class="button-container">', unsafe_allow_html=True)
+        if st.button("📈 View Visualizations", key="view_visualizations", help="See plots and graphs generated from the 'AnalysisFile2.txt' data.", use_container_width=True):
+            st.session_state.page = "visualizations"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# --- Processed Data Landing Page (Currently Blank) ---
+def processed_data_landing_page():
+    st.header("Processed Data Analysis")
+    st.write("This section is dedicated to processed data, such as single-cell RNA sequencing analysis.")
+    st.info("Functionality for processed data will be added here soon!")
+
+    if st.button("🏠 Back to Home", key="processed_landing_back_home"):
+        st.session_state.page = "home"
+        st.rerun()
+
+    st.markdown("---")
+    # You can add more buttons or content here as you develop the processed data features
+    # Example:
+    # if st.button("Explore Single-Cell Data (Coming Soon!)"):
+    #     st.write("Stay tuned for interactive single-cell analysis tools!")
+
+
 # --- Existing Page Functions (Modified for power of 10 axis labels) ---
 def visualizations_page():
     st.header("Gene Expression Visualizations")
     st.write("Explore gene expression patterns through interactive scatter plots.")
 
-    if st.button("🏠 Back to Home"):
+    if st.button("🏠 Back to Home", key="viz_back_home"):
         st.session_state.page = "home"
         st.rerun()
     
@@ -854,10 +922,6 @@ def visualizations_page():
             single_cell_colors = px.colors.qualitative.D3
             single_cell_color_map = {str(g): single_cell_colors[i % len(single_cell_colors)] for i, g in enumerate(range(1, 11))}
 
-            # Plot points, colored by Single-Cell Group, symbol by Early Embryo Group
-            early_embryo_groups_sorted = sorted(merged_df_sorted['Group'].unique(), key=lambda x: int(x))
-            single_cell_groups_sorted = sorted(merged_df_sorted['group number'].unique(), key=lambda x: int(x))
-
             # Add traces for actual data points
             for ee_group in early_embryo_groups_sorted:
                 ee_symbol = marker_symbols_ee[int(ee_group) % len(marker_symbols_ee)]
@@ -980,7 +1044,7 @@ def raw_data_page():
         if st.button("🏠 Back to Home", key="raw_data_back_btn"):
             st.session_state.page = "home"
             st.rerun()
-    
+            
     st.markdown("---")
 
     data_source_option = st.radio(
@@ -1089,26 +1153,17 @@ def raw_data_page():
                     st.info(f"Enter an {mean_col_name} value to find closest genes.")
 
 
-def single_cell_page():
-    st.header("Single-Cell Analysis")
-    st.write("This page will feature tools and visualizations for single-cell data analysis.")
-    
-    if st.button("🏠 Back to Home", key="single_cell_back_btn"):
-        st.session_state.page = "home"
-        st.rerun()
-
-    st.markdown("---")
-    st.write("Single-cell analysis content will go here.")
-
 # --- Page Navigation Logic ---
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
 if st.session_state.page == "home":
     home_page()
+elif st.session_state.page == "original_data_landing":
+    original_data_landing_page()
+elif st.session_state.page == "processed_data_landing":
+    processed_data_landing_page()
 elif st.session_state.page == "visualizations":
     visualizations_page()
 elif st.session_state.page == "raw_data":
     raw_data_page()
-elif st.session_state.page == "single_cell":
-    single_cell_page()
