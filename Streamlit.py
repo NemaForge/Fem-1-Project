@@ -14,6 +14,7 @@ st.set_page_config(
 )
 
 # --- Global Data Loading and Constants ---
+# Assuming AnalysisFile2.txt is also managed by the file manager or is in the default accessible path
 input_file_path = "AnalysisFile2.txt"
 
 # Updated: Nested dictionary for single-cell data files, categorized by Germ and Somatic
@@ -211,7 +212,13 @@ fem1_dot_size = 10
 def load_original_data(path):
     """Loads and preprocesses the original AnalysisFile2.txt data."""
     try:
-        df_loaded = pd.read_csv(path, sep='\t')
+        # Use st.file_manager to get the path for uploaded files
+        actual_path = st.file_manager.get_uploaded_file_path(path)
+        if actual_path is None:
+            st.error(f"Error: Original data file '{path}' not found or accessible. Please ensure it's uploaded.")
+            st.stop()
+
+        df_loaded = pd.read_csv(actual_path, sep='\t')
         for col in ['Mean of Geneid Strains', 'Standard Deviation of Geneid Strains', 'Group']:
             df_loaded[col] = pd.to_numeric(df_loaded[col], errors='coerce')
         df_loaded.dropna(subset=['Mean of Geneid Strains', 'Standard Deviation of Geneid Strains', 'Group'], inplace=True)
@@ -229,13 +236,19 @@ def load_single_cell_dataframes_original_structure():
     """
     Loads single-cell data, organized by category (Germ/Somatic).
     Standardizes column names to 'gene name', 'Scaled_TPM', 'group number'.
+    Uses st.file_manager to get the actual path of uploaded files.
     """
     all_single_cell_dfs = {}
     for category, files_map in SINGLE_CELL_FILES_DISPLAY_MAP.items():
         category_dfs = {}
         for display_name, filename in files_map.items():
-            # Assuming all files are in the root directory as per user's previous context
-            file_path = filename
+            # Use st.file_manager to get the actual path of the uploaded file
+            file_path = st.file_manager.get_uploaded_file_path(filename)
+            
+            if file_path is None:
+                st.warning(f"Single-cell file not found: '{filename}' in category '{category}'. It will not be available in the dropdown. Please ensure the file is uploaded and accessible.")
+                continue # Skip to the next file if this one isn't found
+            
             try:
                 df_sc = pd.read_csv(file_path, sep='\t')
                 # Standardize column names to match existing plotting functions
@@ -251,10 +264,8 @@ def load_single_cell_dataframes_original_structure():
                         df_sc[col] = pd.to_numeric(df_sc[col], errors='coerce')
                 df_sc.dropna(inplace=True)
                 category_dfs[display_name] = df_sc
-            except FileNotFoundError:
-                st.warning(f"Single-cell file not found: {filename} in category {category}. It will not be available in the dropdown. Please ensure the file exists in your repository.")
             except Exception as e:
-                st.error(f"Error loading single-cell data '{filename}' in category {category}: {e}")
+                st.error(f"Error loading single-cell data '{filename}' in category '{category}': {e}")
         all_single_cell_dfs[category] = category_dfs
     return all_single_cell_dfs
 
@@ -1184,7 +1195,7 @@ def comparison_page():
                 text=[
                     f"<b>{row['gene_common']}</b><br>EE Expr: {row['Mean of Geneid Strains']:.2f} (Group: {row['Group']})"
                     f"<br>SC Expr: {row['Scaled_TPM']:.2f} (Group: {row['group number']})"
-                    for idx, row in subset_sc_df.iterrows()
+                    f"<br>HIGHLIGHTED"
                 ],
                 hovertemplate='%{text}<extra></extra>'
             ))
