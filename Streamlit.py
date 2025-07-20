@@ -29,9 +29,11 @@ GERM_CELL_FILES_MAP = {
     "Syncitial pachytene spermatocytes": "finalSyncitial.txt"
 }
 
-# Somatic Cell data files are assumed to be in the root directory as well,
-# and will be identified by excluding germ and original data files.
-# No specific SOMATIC_CELL_DIRECTORY needed as they are in root.
+# Directory for the new processed somatic data
+# IMPORTANT: This path is relative to your Streamlit app's root.
+# Make sure your 'Processed Somatic Data Set_Grouped' folder is inside a 'data' folder
+# within your GitHub repository (e.g., your_repo/data/Processed Somatic Data Set_Grouped/).
+SOMATIC_CELL_DIRECTORY = "data/Processed Somatic Data Set_Grouped"
 
 regular_dot_size = 5
 fem1_dot_size = 10
@@ -57,26 +59,15 @@ def load_original_data(path):
 def load_all_single_cell_dataframes():
     """
     Loads both Germ and Somatic single-cell data, standardizing column names.
-    Identifies somatic files by excluding known germ and original data files from root.
     Returns a nested dictionary: {'Germ': {df_name: df}, 'Somatic': {df_name: df}}.
     """
     all_single_cell_dfs = {'Germ': {}, 'Somatic': {}}
     
-    # Get all .txt files in the root directory
-    all_root_txt_files = glob.glob("*.txt")
-    
-    # Identify known germ cell filenames and the original data file
-    germ_filenames_set = set(GERM_CELL_FILES_MAP.values())
-    excluded_root_files = germ_filenames_set.union({ORIGINAL_DATA_FILE})
-
     # --- Load Germ Cell Data ---
     for display_name, filename in GERM_CELL_FILES_MAP.items():
-        if filename not in all_root_txt_files:
-            st.warning(f"Germ cell file '{filename}' (from map) not found in root. Skipping.")
-            continue
-        
+        file_path = filename # Germ files assumed in root
         try:
-            df_sc = pd.read_csv(filename, sep='\t') # Load directly from root
+            df_sc = pd.read_csv(file_path, sep='\t')
             
             # Standardize column names for Germ data
             # Assuming original germ files have 'gene name', 'Scaled_TPM', 'group number'
@@ -95,18 +86,17 @@ def load_all_single_cell_dataframes():
             else:
                 st.warning(f"Germ cell file '{filename}' missing expected columns ('gene name', 'Scaled_TPM', 'group number'). Skipping.")
 
-        except FileNotFoundError: # This should ideally not happen due to the 'if filename not in' check
-            st.warning(f"Germ cell file not found unexpectedly: {filename}. It will not be available.")
+        except FileNotFoundError:
+            st.warning(f"Germ cell file not found: {filename}. It will not be available. Please ensure the file exists in your repository.")
         except Exception as e:
             st.error(f"Error loading Germ cell data '{filename}': {e}")
 
-    # --- Load Somatic Cell Data (identified by exclusion) ---
-    somatic_file_paths_in_root = [f for f in all_root_txt_files if f not in excluded_root_files]
+    # --- Load Somatic Cell Data ---
+    somatic_file_paths = glob.glob(os.path.join(SOMATIC_CELL_DIRECTORY, "*.txt"))
+    if not somatic_file_paths:
+        st.warning(f"No somatic cell data files found in '{SOMATIC_CELL_DIRECTORY}'. Please ensure the path is correct and files are .txt.")
     
-    if not somatic_file_paths_in_root:
-        st.warning(f"No somatic cell data files found in the root directory after excluding germ and original data files. Please ensure they are present and are .txt.")
-    
-    for file_path in somatic_file_paths_in_root:
+    for file_path in somatic_file_paths:
         display_name = os.path.splitext(os.path.basename(file_path))[0] # Use filename without extension as display name
         try:
             df_sc = pd.read_csv(file_path, sep='\t')
@@ -128,8 +118,8 @@ def load_all_single_cell_dataframes():
             else:
                 st.warning(f"Somatic cell file '{display_name}' missing expected columns ('gene_short_name', 'scaled_TPM', 'group_number'). Skipping.")
 
-        except FileNotFoundError: # This should ideally not happen due to the 'if filename not in' check
-            st.warning(f"Somatic cell file not found unexpectedly: {file_path}. It will not be available.")
+        except FileNotFoundError:
+            st.warning(f"Somatic cell file not found: {file_path}. It will not be available.")
         except Exception as e:
             st.error(f"Error loading Somatic cell data '{display_name}': {e}")
             
@@ -157,7 +147,8 @@ def get_sorted_groups(df, group_col):
 # Populate these only if data exists for accurate sorting
 early_embryo_groups_sorted = get_sorted_groups(df_original, 'Group')
 
-# Find a representative single-cell dataframe to get sorted groups for common single cell groups
+# Find a representative single-cell dataframe to get sorted groups for legend
+# Using the first available germ or somatic dataframe for common single cell groups
 sample_sc_df = None
 if single_cell_dataframes_categorized['Germ']:
     sample_sc_df = next(iter(single_cell_dataframes_categorized['Germ'].values()))
@@ -173,20 +164,18 @@ else:
 # --- Helper Functions for Plotting ---
 def create_aggregated_hover_data_flexible(df_to_process, gene_col, mean_col, std_dev_col, group_col, round_decimals=3):
     if df_to_process.empty:
-        return pd.DataFrame(columns=[gene_col, mean_col, std_dev_col, group_col, 'Aggregated Hover Text'])
+        return pd.DataFrame(columns=[mean_col, std_dev_col, group_col, 'Aggregated Hover Text'])
 
     df_temp = df_to_process.copy()
     
     df_temp[f'{mean_col}_numeric_rounded'] = pd.to_numeric(df_temp[mean_col], errors='coerce').round(round_decimals)
-    
     # std_dev_col might not exist for single-cell data, handle gracefully
     if std_dev_col and std_dev_col in df_temp.columns:
         df_temp[f'{std_dev_col}_numeric_rounded'] = pd.to_numeric(df_temp[std_dev_col], errors='coerce').round(round_decimals)
         subset_cols = [f'{mean_col}_numeric_rounded', f'{std_dev_col}_numeric_rounded', group_col]
         dropna_subset_cols = [f'{mean_col}_numeric_rounded', f'{std_dev_col}_numeric_rounded']
-    else: # For single-cell data where std_dev is not provided (or renamed to expression_value)
-        # Use mean_col (expression_value) as the effective 'std_dev_col' for hover text formatting
-        df_temp[f'{std_dev_col}_numeric_rounded'] = df_temp[f'{mean_col}_numeric_rounded'] # Dummy for hover
+    else: # For single-cell data where std_dev is not provided
+        df_temp[f'{std_dev_col}_numeric_rounded'] = np.nan # Placeholder if it doesn't exist
         subset_cols = [f'{mean_col}_numeric_rounded', group_col] # Group by mean and group only
         dropna_subset_cols = [f'{mean_col}_numeric_rounded']
 
@@ -194,48 +183,27 @@ def create_aggregated_hover_data_flexible(df_to_process, gene_col, mean_col, std
 
     def generate_hover_text(x_group):
         lines = []
-        for gene_name_val, mean_val, std_dev_val in zip(x_group[gene_col], x_group[mean_col], x_group[f'{std_dev_col}_numeric_rounded'] if std_dev_col and std_dev_col in x_group.columns else [None]*len(x_group)):
-            if std_dev_val is not None and pd.notna(std_dev_val) and std_dev_col in df_to_process.columns: # Only show std dev if it originally existed
+        for gene_name_val, mean_val, std_dev_val in zip(x_group[gene_col], x_group[mean_col], x_group[std_dev_col] if std_dev_col else [None]*len(x_group)):
+            if std_dev_val is not None and pd.notna(std_dev_val):
                 lines.append(f"<b>{gene_name_val}</b> (Expr: {float(mean_val):.2f}, Std Dev: {float(std_dev_val):.2f})")
-            else: # For single cell or if std dev column doesn't exist
+            else:
                 lines.append(f"<b>{gene_name_val}</b> (Expr: {float(mean_val):.2f})")
         return '<br>'.join(lines)
 
-    # For single-cell data, std_dev_col will be None or 'expression_value' used as dummy, so group by 'mean_col_numeric_rounded' and 'group_col'
-    if std_dev_col not in df_to_process.columns: # If processing single-cell data (no original std_dev_col)
-        grouped = df_temp.groupby([df_temp[f'{mean_col}_numeric_rounded'], df_temp[group_col]]).apply(generate_hover_text).reset_index(name='Aggregated Hover Text')
-        grouped.rename(columns={f'{mean_col}_numeric_rounded': mean_col}, inplace=True)
-        # Remove the dummy std_dev_col if it was created
-        if f'{std_dev_col}_numeric_rounded' in grouped.columns:
-            grouped.drop(columns=[f'{std_dev_col}_numeric_rounded'], inplace=True)
-    else: # For original data (std_dev_col exists)
-        grouped = df_temp.groupby([df_temp[f'{mean_col}_numeric_rounded'], df_temp[f'{std_dev_col}_numeric_rounded'], df_temp[group_col]]).apply(generate_hover_text).reset_index(name='Aggregated Hover Text')
-        grouped.rename(columns={
-            f'{mean_col}_numeric_rounded': mean_col,
-            f'{std_dev_col}_numeric_rounded': std_dev_col
-        }, inplace=True)
+    grouped = df_temp.groupby(subset_cols).apply(generate_hover_text).reset_index(name='Aggregated Hover Text')
+
+
+    grouped.rename(columns={
+        f'{mean_col}_numeric_rounded': mean_col,
+        f'{std_dev_col}_numeric_rounded': std_dev_col # This will exist but might be NaN for SC
+    }, inplace=True)
     
     return grouped
 
 
 def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_col, mean_col, std_dev_col, group_col, group_color_map):
     st.subheader(f"{plot_title_prefix}: All Genes Across All Groups")
-    
-    # Adjust description based on whether std_dev is available (original data) or not (single-cell data)
-    plot_description = f"This plot shows the {mean_col} "
-    if std_dev_col and std_dev_col in df_data.columns and not df_data[std_dev_col].isnull().all():
-        plot_description += f"vs {std_dev_col} "
-        y_axis_title_text = std_dev_col
-        y_axis_type = 'log'
-        yaxis_showticklabels = True
-    else:
-        plot_description += f"distribution "
-        y_axis_title_text = ""
-        y_axis_type = 'linear'
-        yaxis_showticklabels = False # No Y-axis labels for flat distribution
-    plot_description += "for all genes, categorized by their assigned group. Hover over a point to see all overlapping Gene Names and their data."
-    st.write(plot_description)
-
+    st.write(f"This plot shows the {mean_col} vs {std_dev_col} for all genes, categorized by their assigned group. Hover over a point to see all overlapping Gene Names and their data.")
 
     removed_gene_name_plot1 = None
     removed_gene_mean_value_plot1 = None
@@ -250,6 +218,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
             removed_gene_mean_value_plot1 = float(max_mean_gene_row[mean_col])
             df_filtered_for_plot1 = df_data[df_data[gene_col] != removed_gene_name_plot1].copy()
 
+    # Pass the appropriate std_dev_col (can be None for single cell)
     plot1_data_for_hover = create_aggregated_hover_data_flexible(
         df_filtered_for_plot1[df_filtered_for_plot1[gene_col] != 'fem-1'],
         gene_col, mean_col, std_dev_col, group_col
@@ -261,14 +230,22 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
     for group_name in unique_groups:
         group_df = plot1_data_for_hover[plot1_data_for_hover[group_col] == group_name]
         if not group_df.empty:
-            # Y-axis data dynamically based on presence of std_dev_col
-            y_axis_data = group_df[std_dev_col] if (std_dev_col and std_dev_col in group_df.columns and not group_df[std_dev_col].isnull().all()) else [0] * len(group_df)
-            
+            # Check if std_dev_col is valid and exists in group_df before using it for y-axis
+            y_axis_data = group_df[std_dev_col] if std_dev_col and std_dev_col in group_df.columns else [0] * len(group_df)
+            mode = 'markers'
+            if not std_dev_col or std_dev_col not in group_df.columns: # If no std dev, plot as a line of points at y=0
+                y_axis_title_text = "" # Y-axis title will be empty for single cell
+                fig1.update_layout(yaxis_showticklabels=False)
+            else:
+                y_axis_title_text = std_dev_col # Use original std dev name for early embryo
+                fig1.update_layout(yaxis_showticklabels=True)
+
+
             fig1.add_trace(go.Scatter(
                 x=group_df[mean_col],
                 y=y_axis_data,
-                mode='markers',
-                name=f'Group {group_name}', # Use "Group" prefix for clarity in legend
+                mode=mode,
+                name=f'{group_name}',
                 marker=dict(size=regular_dot_size, color=group_color_map.get(str(group_name), 'lightgray')),
                 hoverinfo='text',
                 text=group_df['Aggregated Hover Text'],
@@ -281,14 +258,11 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
             fem1_hover_text = (
                 f"<b>{fem1_data_plot1[gene_col].iloc[0]}</b>"
                 f"<br>{mean_col}: {float(fem1_data_plot1[mean_col].iloc[0]):.2f}"
+                f"<br>{std_dev_col}: {float(fem1_data_plot1[std_dev_col].iloc[0]):.2f}"
+                f"<br>Group: {fem1_data_plot1[group_col].iloc[0]}"
             )
-            # Add std_dev to hover if applicable
-            if std_dev_col and std_dev_col in fem1_data_plot1.columns and pd.notna(fem1_data_plot1[std_dev_col].iloc[0]):
-                 fem1_hover_text += f"<br>{std_dev_col}: {float(fem1_data_plot1[std_dev_col].iloc[0]):.2f}"
-            fem1_hover_text += f"<br>Group: {fem1_data_plot1[group_col].iloc[0]}"
-            
             # Y-axis data for fem-1 (handle if std_dev_col is missing)
-            fem1_y_data = fem1_data_plot1[std_dev_col] if (std_dev_col and std_dev_col in fem1_data_plot1.columns and not fem1_data_plot1[std_dev_col].isnull().all()) else [0] * len(fem1_data_plot1)
+            fem1_y_data = fem1_data_plot1[std_dev_col] if std_dev_col and std_dev_col in fem1_data_plot1.columns else [0] * len(fem1_data_plot1)
             fig1.add_trace(go.Scatter(
                 x=fem1_data_plot1[mean_col],
                 y=fem1_y_data,
@@ -309,19 +283,18 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         xaxis_title_font_size=14,
         yaxis_title_font_size=14,
         xaxis_type='log', # Set X-axis to logarithmic scale
-        yaxis_type=y_axis_type, # Y-axis type set dynamically
+        yaxis_type='log' if std_dev_col and std_dev_col in df_data.columns else 'linear', # Y-axis log only if std dev is present
         xaxis_exponentformat='power', # Display exponents
         xaxis_showexponent='all',    # Show exponent for all ticks
         xaxis_tickformat='e',        # Use scientific notation for ticks
-        yaxis_exponentformat='power' if y_axis_type == 'log' else 'none',
-        yaxis_showexponent='all' if y_axis_type == 'log' else 'none',
-        yaxis_tickformat='e' if y_axis_type == 'log' else '',
+        yaxis_exponentformat='power' if std_dev_col and std_dev_col in df_data.columns else 'none',
+        yaxis_showexponent='all' if std_dev_col and std_dev_col in df_data.columns else 'none',
+        yaxis_tickformat='e' if std_dev_col and std_dev_col in df_data.columns else '',
         xaxis_tickangle=90,
         yaxis_tickangle=0,
         width=900,
         height=600,
-        legend_title_text='Group',
-        yaxis_showticklabels=yaxis_showticklabels
+        legend_title_text='Group'
     )
     st.plotly_chart(fig1)
     if removed_gene_name_plot1:
@@ -340,16 +313,19 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
 
     fig2 = go.Figure()
     if not plot2_data_for_hover.empty:
-        y_axis_data_2 = plot2_data_for_hover[std_dev_col] if (std_dev_col and std_dev_col in plot2_data_for_hover.columns and not plot2_data_for_hover[std_dev_col].isnull().all()) else [0] * len(plot2_data_for_hover)
-        
-        y_axis_title_text_2 = std_dev_col if (std_dev_col and std_dev_col in plot2_data_for_hover.columns and not plot2_data_for_hover[std_dev_col].isnull().all()) else ""
-        y_axis_type_2 = 'log' if (std_dev_col and std_dev_col in plot2_data_for_hover.columns and not plot2_data_for_hover[std_dev_col].isnull().all()) else 'linear'
-        yaxis_showticklabels_2 = True if (std_dev_col and std_dev_col in plot2_data_for_hover.columns and not plot2_data_for_hover[std_dev_col].isnull().all()) else False
+        y_axis_data_2 = plot2_data_for_hover[std_dev_col] if std_dev_col and std_dev_col in plot2_data_for_hover.columns else [0] * len(plot2_data_for_hover)
+        mode_2 = 'markers'
+        if not std_dev_col or std_dev_col not in plot2_data_for_hover.columns:
+            y_axis_title_text_2 = ""
+            fig2.update_layout(yaxis_showticklabels=False)
+        else:
+            y_axis_title_text_2 = std_dev_col
+            fig2.update_layout(yaxis_showticklabels=True)
 
         fig2.add_trace(go.Scatter(
             x=plot2_data_for_hover[mean_col],
             y=y_axis_data_2,
-            mode='markers',
+            mode=mode_2,
             marker=dict(size=regular_dot_size, color=group_color_map.get('9', 'blue')),
             hoverinfo='text',
             text=plot2_data_for_hover['Aggregated Hover Text'],
@@ -361,12 +337,10 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         fem1_hover_text_plot2 = (
             f"<b>{fem1_in_group9[gene_col].iloc[0]}</b>"
             f"<br>{mean_col}: {float(fem1_in_group9[mean_col].iloc[0]):.2f}"
+            f"<br>{std_dev_col}: {float(fem1_in_group9[std_dev_col].iloc[0]):.2f}"
+            f"<br>Group: {fem1_in_group9[group_col].iloc[0]}"
         )
-        if std_dev_col and std_dev_col in fem1_in_group9.columns and pd.notna(fem1_in_group9[std_dev_col].iloc[0]):
-            fem1_hover_text_plot2 += f"<br>{std_dev_col}: {float(fem1_in_group9[std_dev_col].iloc[0]):.2f}"
-        fem1_hover_text_plot2 += f"<br>Group: {fem1_in_group9[group_col].iloc[0]}"
-
-        fem1_y_data_2 = fem1_in_group9[std_dev_col] if (std_dev_col and std_dev_col in fem1_in_group9.columns and not fem1_in_group9[std_dev_col].isnull().all()) else [0] * len(fem1_in_group9)
+        fem1_y_data_2 = fem1_in_group9[std_dev_col] if std_dev_col and std_dev_col in fem1_in_group9.columns else [0] * len(fem1_in_group9)
         fig2.add_trace(go.Scatter(
             x=fem1_in_group9[mean_col],
             y=fem1_y_data_2,
@@ -387,16 +361,15 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         xaxis_title_font_size=14,
         yaxis_title_font_size=14,
         xaxis_type='log', # Set X-axis to logarithmic scale
-        yaxis_type=y_axis_type_2, # Y-axis type set dynamically
+        yaxis_type='log' if std_dev_col and std_dev_col in df_data.columns else 'linear', # Y-axis log only if std dev is present
         xaxis_exponentformat='power',
-        yaxis_showexponent='all' if y_axis_type_2 == 'log' else 'none',
-        yaxis_tickformat='e' if y_axis_type_2 == 'log' else '',
+        yaxis_showexponent='all' if std_dev_col and std_dev_col in df_data.columns else 'none',
+        yaxis_tickformat='e' if std_dev_col and std_dev_col in df_data.columns else '',
         yaxis_exponentformat='power',
         xaxis_tickangle=90,
         yaxis_tickangle=0,
         width=900,
-        height=600,
-        yaxis_showticklabels=yaxis_showticklabels_2
+        height=600
     )
     st.plotly_chart(fig2)
 
@@ -433,17 +406,20 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
     for group_name in unique_groups_plot3:
         group_df = plot3_data_for_hover[plot3_data_for_hover[group_col] == group_name]
         if not group_df.empty:
-            y_axis_data_3 = group_df[std_dev_col] if (std_dev_col and std_dev_col in group_df.columns and not group_df[std_dev_col].isnull().all()) else [0] * len(group_df)
-            
-            y_axis_title_text_3 = std_dev_col if (std_dev_col and std_dev_col in group_df.columns and not group_df[std_dev_col].isnull().all()) else ""
-            y_axis_type_3 = 'log' if (std_dev_col and std_dev_col in group_df.columns and not group_df[std_dev_col].isnull().all()) else 'linear'
-            yaxis_showticklabels_3 = True if (std_dev_col and std_dev_col in group_df.columns and not group_df[std_dev_col].isnull().all()) else False
+            y_axis_data_3 = group_df[std_dev_col] if std_dev_col and std_dev_col in group_df.columns else [0] * len(group_df)
+            mode_3 = 'markers'
+            if not std_dev_col or std_dev_col not in group_df.columns:
+                y_axis_title_text_3 = ""
+                fig3.update_layout(yaxis_showticklabels=False)
+            else:
+                y_axis_title_text_3 = std_dev_col
+                fig3.update_layout(yaxis_showticklabels=True)
 
             fig3.add_trace(go.Scatter(
                 x=group_df[mean_col],
                 y=y_axis_data_3,
-                mode='markers',
-                name=f'Group {group_name}', # Use "Group" prefix for clarity in legend
+                mode=mode_3,
+                name=f'{group_name}',
                 marker=dict(size=regular_dot_size, color=group_color_map.get(str(group_name), 'gray')),
                 hoverinfo='text',
                 hovertext=group_df['Aggregated Hover Text'],
@@ -455,12 +431,10 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         fem1_hover_text_plot3 = (
             f"<b>{fem1_in_selected_groups[gene_col].iloc[0]}</b>"
             f"<br>{mean_col}: {float(fem1_in_selected_groups[mean_col].iloc[0]):.2f}"
+            f"<br>{std_dev_col}: {float(fem1_in_selected_groups[std_dev_col].iloc[0]):.2f}"
+            f"<br>Group: {fem1_in_selected_groups[group_col].iloc[0]}"
         )
-        if std_dev_col and std_dev_col in fem1_in_selected_groups.columns and pd.notna(fem1_in_selected_groups[std_dev_col].iloc[0]):
-            fem1_hover_text_plot3 += f"<br>{std_dev_col}: {float(fem1_in_selected_groups[std_dev_col].iloc[0]):.2f}"
-        fem1_hover_text_plot3 += f"<br>Group: {fem1_in_selected_groups[group_col].iloc[0]}"
-
-        fem1_y_data_3 = fem1_in_selected_groups[std_dev_col] if (std_dev_col and std_dev_col in fem1_in_selected_groups.columns and not fem1_in_selected_groups[std_dev_col].isnull().all()) else [0] * len(fem1_in_selected_groups)
+        fem1_y_data_3 = fem1_in_selected_groups[std_dev_col] if std_dev_col and std_dev_col in fem1_in_selected_groups.columns else [0] * len(fem1_in_selected_groups)
         fig3.add_trace(go.Scatter(
             x=fem1_in_selected_groups[mean_col],
             y=fem1_y_data_3,
@@ -481,21 +455,448 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         xaxis_title_font_size=14,
         yaxis_title_font_size=14,
         xaxis_type='log', # Log scale X-axis
-        yaxis_type=y_axis_type_3, # Y-axis type set dynamically
+        yaxis_type='log' if std_dev_col and std_dev_col in df_data.columns else 'linear', # Y-axis log only if std dev is present
         xaxis_exponentformat='power',
-        yaxis_showexponent='all' if y_axis_type_3 == 'log' else 'none',
-        yaxis_tickformat='e' if y_axis_type_3 == 'log' else '',
+        yaxis_showexponent='all' if std_dev_col and std_dev_col in df_data.columns else 'none',
+        yaxis_tickformat='e' if std_dev_col and std_dev_col in df_data.columns else '',
         yaxis_exponentformat='power',
         xaxis_tickangle=90,        # Rotate x-axis labels
         yaxis_tickangle=0,         # Keep y-axis labels horizontal
         width=900,
         height=600,
-        legend_title_text='Group',
-        yaxis_showticklabels=yaxis_showticklabels_3
+        legend_title_text='Group'
     )
     st.plotly_chart(fig3)
     if removed_gene_name_plot3:
         st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_plot3}</b> (Mean: {removed_gene_mean_value_plot3:.2f}) was removed to improve plot clarity as it was the single highest outlier in "{mean_col}" within {group_col}s 8, 9, and 10.</p>', unsafe_allow_html=True)
+
+
+def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_prefix, gene_col, tpm_col, group_col, group_color_map):
+    
+    st.subheader(f"{plot_title_prefix}: All Genes (Sorted by {tpm_col})")
+    st.write(f"This line graph shows {tpm_col} for all genes, sorted by expression, with points color-coded by their assigned group. Zoom in to see individual gene points.")
+    
+    df_sorted_by_tpm = df_data_sc.sort_values(by=tpm_col, ascending=True).reset_index(drop=True)
+    
+    removed_gene_name_plot_sc = None
+    removed_gene_tpm_value_plot_sc = None
+
+    if not df_sorted_by_tpm.empty and tpm_col in df_sorted_by_tpm.columns:
+        df_for_outlier_check_sc = df_sorted_by_tpm[df_sorted_by_tpm[gene_col] != 'fem-1'].copy()
+        if not df_for_outlier_check_sc.empty and pd.to_numeric(df_for_outlier_check_sc[tpm_col], errors='coerce').notna().any():
+            max_tpm_gene_row_sc = df_for_outlier_check_sc.loc[pd.to_numeric(df_for_outlier_check_sc[tpm_col], errors='coerce').idxmax()]
+            removed_gene_name_plot_sc = max_tpm_gene_row_sc[gene_col]
+            removed_gene_tpm_value_plot_sc = float(max_tpm_gene_row_sc[tpm_col])
+            df_sorted_by_tpm = df_sorted_by_tpm[df_sorted_by_tpm[gene_col] != removed_gene_name_plot_sc].copy()
+
+    fig_sc = go.Figure()
+
+    for group_name_sc in sorted(df_sorted_by_tpm[group_col].unique(), key=lambda x: int(x) if str(x).isdigit() else x):
+        group_df_sc = df_sorted_by_tpm[df_sorted_by_tpm[group_col] == group_name_sc]
+        if not group_df_sc.empty:
+            fig_sc.add_trace(go.Scatter(
+                x=group_df_sc[tpm_col],
+                y=[0] * len(group_df_sc),
+                mode='markers',
+                name=f'Group {group_name_sc}', # Use "Group" prefix for clarity in legend
+                marker=dict(size=regular_dot_size, color=group_color_map.get(str(group_name_sc), 'lightgray')),
+                hoverinfo='text',
+                text=[
+                    f"<b>{row[gene_col]}</b><br>{tpm_col}: {float(row[tpm_col]):.2f}<br>Group: {row[group_col]}"
+                    for idx, row in group_df_sc.iterrows()
+                ],
+                hovertemplate='%{text}<extra></extra>'
+            ))
+
+    fem1_in_sorted_sc = df_sorted_by_tpm[df_sorted_by_tpm[gene_col] == 'fem-1']
+    if not fem1_in_sorted_sc.empty:
+        fem1_hover_text_sc = (
+            f"<b>{fem1_in_sorted_sc[gene_col].iloc[0]}</b>"
+            f"<br>{tpm_col}: {float(fem1_in_sorted_sc[tpm_col].iloc[0]):.2f}"
+            f"<br>Group: {fem1_in_sorted_sc[group_col].iloc[0]}"
+        )
+        fig_sc.add_trace(go.Scatter(
+            x=fem1_in_sorted_sc[tpm_col],
+            y=[0] * len(fem1_in_sorted_sc),
+            mode='markers',
+            marker=dict(size=fem1_dot_size, color='red', symbol='circle', line=dict(width=2, color='DarkRed')),
+            name='fem-1',
+            hoverinfo='text',
+            text=[fem1_hover_text_sc],
+            hovertemplate='%{text}<extra></extra>'
+        ))
+    
+    fig_sc.update_layout(
+        title=f'{plot_title_prefix} Genes: {tpm_col} Distribution',
+        xaxis_title=tpm_col,
+        yaxis_title='',
+        yaxis_showticklabels=False,
+        font_family="Times New Roman",
+        title_font_size=20,
+        xaxis_title_font_size=14,
+        xaxis_type='log', # Set X-axis to logarithmic scale
+        xaxis_exponentformat='power',
+        xaxis_showexponent='all',
+        xaxis_tickformat='e',
+        xaxis_tickangle=90,
+        width=1200,
+        height=300,
+        legend_title_text='Group'
+    )
+    st.plotly_chart(fig_sc)
+    if removed_gene_name_plot_sc:
+        st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_plot_sc}</b> ({tpm_col}: {removed_gene_tpm_value_plot_sc:.2f}) was removed to improve plot clarity as it was the single highest outlier in "{tpm_col}".</p>', unsafe_allow_html=True)
+
+    st.markdown("---")
+
+
+# --- New Home Page Function (unchanged) ---
+def home_page():
+    st.markdown("""
+    <style>
+        .stApp {
+            background-color: white; /* Changed background to white */
+        }
+        .main > div {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+        
+        .hero-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2.5rem 2rem;
+            border-radius: 20px;
+            margin: 1rem auto 2rem auto;
+            color: white;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 800px;
+        }
+        
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            text-align: center;
+            line-height: 1.2;
+        }
+        
+        .hero-slogan {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            font-style: italic;
+            text-align: center;
+        }
+        
+        /* Override Streamlit button styling completely */
+        div.stButton > button:first-child {
+            background: linear-gradient(45deg, #e0e0e0 0%, #c0c0c0 100%) !important; /* Lighter background for white page */
+            color: black !important; /* Black font for white background */
+            border: 2px solid #667eea !important; /* Add a subtle border */
+            border-radius: 25px !important;
+            font-size: 2.5rem !important; /* Adjusted font size for better fit */
+            font-weight: bold !important;
+            width: 300px !important; /* Adjusted width for better centering within a flex container */
+            height: 80px !important; /* Adjusted height */
+            transition: all 0.3s ease !important;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3) !important;
+            margin: 1rem auto !important; /* Ensure vertical spacing, horizontal centering via parent */
+            display: flex !important; /* Use flexbox for button content centering if needed */
+            justify-content: center !important; /* Center text horizontally */
+            align-items: center !important; /* Center text vertically */
+            line-height: 1 !important; /* Reset line-height to 1 for vertical centering */
+            padding: 0 !important;
+        }
+        
+        div.stButton > button:first-child:hover {
+            transform: translateY(-5px) !important;
+            box_shadow: 0 12px 35px rgba(0,0,0,0.4) !important;
+            background: linear_gradient(45deg, #d0d0d0 0%, #b0b0b0 100%) !important; /* Slightly darker on hover */
+        }
+        
+        div.stButton > button:first-child:active {
+            transform: translateY(-2px) !important;
+        }
+        
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* This centers the buttons horizontally within this container */
+            gap: 1.5rem;
+            margin: 1rem auto; /* This centers the container itself within center_col */
+            max_width: 400px; /* Constrain max-width of container for better centering effect */
+        }
+        
+        .side-panel {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 2rem;
+            border-radius: 15px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            margin: 1rem 0;
+            height: fit-content;
+        }
+        
+        .side-panel h3 {
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+        
+        .side-panel p {
+            font-size: 1rem;
+            opacity: 0.9;
+            line-height: 1.4;
+        }
+        
+        .helpful-links {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            padding: 1.5rem;
+            border-radius: 15px;
+            color: #333;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin: 1rem 0;
+        }
+        
+        .helpful-links h3 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+        
+        .helpful-links a {
+            display: block;
+            color: #667eea;
+            text-decoration: none;
+            margin: 0.5rem 0;
+            font-weight: bold;
+        }
+        
+        .helpful-links a:hover {
+            text-decoration: underline;
+        }
+        
+        .research-objectives {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
+            border-radius: 15px;
+            color: white;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            margin: 1rem 0;
+            height: 520px; /* Adjusted to try and fit content better */
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .research-objectives h3 {
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+            text-align: center;
+        }
+        
+        .research-objectives ol {
+            text-align: left;
+            padding-left: 1rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+        }
+        
+        .research-objectives li {
+            margin-bottom: 1.5rem;
+            line-height: 1.4;
+            font-size: 0.95rem;
+        }
+        
+        .floating-emoji {
+            font-size: 3rem;
+            animation: float 3s ease-in-out infinite;
+            display: inline-block;
+            margin: 0.5rem;
+        }
+        
+        .floating-emoji:nth-child(2) {
+            animation-delay: 0.5s;
+        }
+        
+        .floating-emoji:nth-child(3) {
+            animation-delay: 1s;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .footer-section {
+            background-color: #f8f9fa; /* Lighter background for white page */
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-top: 1rem; /* Adjusted margin-top to bring it closer to buttons */
+            text-align: center;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1); /* Added subtle shadow */
+        }
+        
+        .contact-info {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+        
+        .quote-section {
+            font-style: italic;
+            color: #555;
+            font-size: 1rem;
+            border-top: 1px solid #ddd;
+            padding-top: 1rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Create three columns for layout
+    left_col, center_col, right_col = st.columns([1, 2, 1])
+
+    # Left sidebar content
+    with left_col:
+        st.markdown("""
+        <div class="side-panel">
+            <h3>🔬 Research Focus</h3>
+            <p>To determine the molecular mechanism by which maternal RNA regulates fem-1 expression in C. elegans, with emphasis on how this regulation is influenced by parent-of-origin effects.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="helpful-links">
+            <h3>🔗 Helpful Links</h3>
+            <a href="https://docs.google.com/document/d/1kNxQVg3Y1rGJ9-6C6icEoDH44qDx5zQPyCPlS7HfsiY/edit?usp=sharing" target="_blank">Methods Document</a>
+            <a href="https://37nyza-abbas-ghaddar.shinyapps.io/shiny_webpage/" target="_blank">Single Cell Database</a>
+            <a href="https://www.wormbase.org/" target="_blank">WormBase Database</a>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="floating-emoji">🧪</div>
+        <div class="floating-emoji">⚗️</div>
+        <div class="floating-emoji">🔬</div>
+        """, unsafe_allow_html=True)
+
+    # Center content
+    with center_col:
+        # Hero Section - smaller and pushed up
+        st.markdown("""
+        <div class="hero-section">
+            <div class="hero-title">🧬 Saurish and Xander's<br>Biomart 🔬</div>
+            <div class="hero-slogan">Science for the benefit of humanity</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown('<div class="button-container">', unsafe_allow_html=True)
+        
+        # Original Data Button
+        if st.button("📊 Original Data", key="original_data_btn", help="Access raw data tables and visualizations from the initial dataset."):
+            st.session_state.page = "original_data_landing"
+            st.rerun()
+            
+        # Processed Data Button (This button now leads to processed data landing, but actual "Processed Data" page is still pending full implementation beyond single-cell. User asked for this, so keeping it.)
+        if st.button("✨ Processed Data", key="processed_data_btn", help="Explore processed single-cell data."):
+            st.session_state.page = "processed_data_landing"
+            st.rerun()
+            
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Footer section with contact info and quote - MOVED HERE
+        st.markdown("""
+        <div class="footer-section">
+            <div class="contact-info">
+                If you have any questions, email <a href="mailto:sarora@rockefeller.edu" style="color: #667eea; text-decoration: none; font-weight: bold;">sarora@rockefeller.edu</a> or text at <a href="tel:+19089302303" style="color: #667eea; text-decoration: none; font-weight: bold;">(908) 930-2303</a>
+            </div>
+            <div class="quote-section">
+                "The good thing about science is that it's true whether or not you believe in it."<br>
+                <small>- Neil deGrasse Tyson</small>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Right sidebar content
+    with right_col:
+        st.markdown("""
+        <div class="research-objectives">
+            <h3>🎯 Research Objectives</h3>
+            <ol>
+                <li>To recapitulate and characterize fem-1–related phenotypes through targeted genetic crosses to confirm parent-of-origin effects.</li>
+                <li>To perform bioinformatic analysis of publicly available datasets to identify other genes exhibiting similar maternal RNA–dependent expression patterns as fem-1.</li>
+                <li>To generate a mutant strain enabling a genetic screen for fem-1 function, allowing selection and analysis of specific genotype combinations.</li>
+            </ol>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="floating-emoji">🧬</div>
+        <div class="floating-emoji">📊</div>
+        <div class="floating-emoji">🔍</div>
+        """, unsafe_allow_html=True)
+
+    # Add some decorative elements
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style="text-align: center; opacity: 0.6;">
+        🧪 ⚗️ 🔬 🧬 📊 📈 🔍 ⚡ 🧫 🔭 ⚛️ 🌡️
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# --- Intermediate Page for Original Data ---
+def original_data_landing_page():
+    st.header("Original Data: Tables & Visualizations")
+    st.write("Choose how you'd like to explore the early embryo data.")
+
+    if st.button("🏠 Back to Home", key="original_landing_back_home"):
+        st.session_state.page = "home"
+        st.rerun()
+
+    st.markdown("---")
+
+    col1, col2, col3 = st.columns(3) # Added a third column for the new button
+
+    with col1:
+        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True) # Smaller max-width for these buttons
+        if st.button("🔍 Raw Data", key="view_raw_data_tables", help="Browse the raw 'AnalysisFile2.txt' data."):
+            st.session_state.page = "raw_data"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col2:
+        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True) # Smaller max-width for these buttons
+        if st.button("📈 Visualizations", key="view_visualizations", help="See plots and graphs generated from the 'AnalysisFile2.txt' data."):
+            st.session_state.page = "visualizations"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col3: # New column for Comparisons button
+        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
+        if st.button("🔄 Comparisons", key="view_comparisons", help="Compare gene expression across different datasets."):
+            st.session_state.page = "comparison_graphs"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+
+# --- Processed Data Landing Page (Currently Blank - can be expanded later) ---
+def processed_data_landing_page():
+    st.header("Processed Data Analysis")
+    st.write("This section is dedicated to processed data, such as single-cell RNA sequencing analysis.")
+    st.info("Functionality for processed data will be added here soon!")
+
+    if st.button("🏠 Back to Home", key="processed_landing_back_home"):
+        st.session_state.page = "home"
+        st.rerun()
+
+    st.markdown("---")
 
 
 # --- Main Visualization Page ---
@@ -538,7 +939,7 @@ def visualizations_page():
         st.write("Select a single-cell dataset to view its gene expression patterns.")
 
         if not single_cell_dataframes_categorized['Germ'] and not single_cell_dataframes_categorized['Somatic']:
-            st.warning("No single-cell processed data files found or loaded. Please ensure they exist in the specified directories (root in this case).")
+            st.warning("No single-cell processed data files found or loaded. Please ensure they exist in the specified directories.")
             return
 
         # New dropdowns for category and then dataset
@@ -548,18 +949,12 @@ def visualizations_page():
         if single_cell_dataframes_categorized['Somatic']:
             category_options.append("Somatic")
 
-        # Handle case where one category might be empty
-        if not category_options:
-            st.info("No single-cell data categories available.")
-            return
-
         selected_category = st.selectbox(
             "Choose Data Category:",
             category_options,
             key="selected_sc_category"
         )
         
-        selected_single_cell_dataset = None
         if selected_category:
             current_category_dfs = single_cell_dataframes_categorized[selected_category]
             if not current_category_dfs:
@@ -578,17 +973,12 @@ def visualizations_page():
                 fem1_data_sc = current_sc_df[current_sc_df['gene_common'] == 'fem-1']
 
                 # Colors for single cell groups (standard 1-10)
-                # Need to use the 'group_identifier' column's actual values for the map
-                actual_groups_in_df = get_sorted_groups(current_sc_df, 'group_identifier')
                 sc_group_color_map = {
                     str(g): px.colors.qualitative.D3[i % len(px.colors.qualitative.D3)]
-                    for i, g in enumerate(actual_groups_in_df)
+                    for i, g in enumerate(range(1, 11))
                 }
-                if not sc_group_color_map and actual_groups_in_df: # Fallback if px.colors.qualitative.D3 is empty or too small
-                     sc_group_color_map = {str(g): f'hsl({i * (360 / len(actual_groups_in_df))}, 50%, 50%)' for i, g in enumerate(actual_groups_in_df)}
 
-
-                plot_gene_expression_set(
+                plot_single_cell_expression_set(
                     current_sc_df,
                     fem1_data_sc,
                     selected_single_cell_dataset,
@@ -619,10 +1009,6 @@ def comparison_page():
         category_options.append("Germ")
     if single_cell_dataframes_categorized['Somatic']:
         category_options.append("Somatic")
-
-    if not category_options:
-        st.info("No single-cell data categories available for comparison.")
-        return
 
     selected_category_comp = st.selectbox(
         "Choose Single-Cell Data Category for Comparison:",
@@ -700,18 +1086,11 @@ def comparison_page():
         fig_comp = go.Figure()
 
         # Create color map for Single-Cell groups (standard 1-10)
-        # Use the 'group_identifier' column's actual values for the map
-        actual_groups_in_sc_df = get_sorted_groups(sc_df_for_comparison, 'group_identifier')
-        single_cell_color_map = {
-            str(g): px.colors.qualitative.D3[i % len(px.colors.qualitative.D3)]
-            for i, g in enumerate(actual_groups_in_sc_df)
-        }
-        if not single_cell_color_map and actual_groups_in_sc_df: # Fallback
-            single_cell_color_map = {str(g): f'hsl({i * (360 / len(actual_groups_in_sc_df))}, 50%, 50%)' for i, g in enumerate(actual_groups_in_sc_df)}
-
+        single_cell_colors = px.colors.qualitative.D3
+        single_cell_color_map = {str(g): single_cell_colors[i % len(single_cell_colors)] for i, g in enumerate(range(1, 11))}
 
         # Add traces for actual data points (colored by Single-Cell Group)
-        for sc_group in single_cell_groups_sorted: # Use globally sorted list for consistent legend
+        for sc_group in single_cell_groups_sorted:
             # Note: 'group_identifier' is a string from standardization, convert for comparison if needed
             subset_sc_df = merged_df_sorted[merged_df_sorted['group_identifier'] == str(sc_group)]
             if not subset_sc_df.empty:
@@ -861,7 +1240,7 @@ def raw_data_page():
         st.dataframe(current_df, use_container_width=True)
     else: # Single-Cell Processed Data
         if not single_cell_dataframes_categorized['Germ'] and not single_cell_dataframes_categorized['Somatic']:
-            st.warning("No single-cell processed data files found or loaded. Please ensure they exist in the specified directories (root in this case).")
+            st.warning("No single-cell processed data files found or loaded. Please ensure they exist in the specified directories.")
             return
 
         # New dropdowns for category and then dataset
@@ -871,17 +1250,12 @@ def raw_data_page():
         if single_cell_dataframes_categorized['Somatic']:
             category_options.append("Somatic")
 
-        if not category_options: # Handle case where no data in any category
-            st.info("No single-cell data categories available.")
-            return
-
         selected_category_raw = st.selectbox(
             "Select Single-Cell Data Category:",
             category_options,
             key="selected_sc_category_raw"
         )
         
-        selected_single_cell_dataset_raw = None
         if selected_category_raw:
             current_category_dfs_raw = single_cell_dataframes_categorized[selected_category_raw]
             if not current_category_dfs_raw:
