@@ -212,20 +212,15 @@ fem1_dot_size = 10
 def load_original_data(path):
     """Loads and preprocesses the original AnalysisFile2.txt data."""
     try:
-        # Use st.file_manager to get the path for uploaded files
-        actual_path = st.file_manager.get_uploaded_file_path(path)
-        if actual_path is None:
-            st.error(f"Error: Original data file '{path}' not found or accessible. Please ensure it's uploaded.")
-            st.stop()
-
-        df_loaded = pd.read_csv(actual_path, sep='\t')
+        # Reverting to direct path access, assuming files are in the same directory or accessible via relative path
+        df_loaded = pd.read_csv(path, sep='\t')
         for col in ['Mean of Geneid Strains', 'Standard Deviation of Geneid Strains', 'Group']:
             df_loaded[col] = pd.to_numeric(df_loaded[col], errors='coerce')
         df_loaded.dropna(subset=['Mean of Geneid Strains', 'Standard Deviation of Geneid Strains', 'Group'], inplace=True)
         df_loaded['Group'] = df_loaded['Group'].astype(str)
         return df_loaded
     except FileNotFoundError:
-        st.error(f"Error: Original data file not found at {path}. Please ensure the file exists in your repository.")
+        st.error(f"Error: Original data file not found at {path}. Please ensure the file exists in your repository's root directory or the specified path.")
         st.stop()
     except Exception as e:
         st.error(f"Error loading original data: {e}")
@@ -236,18 +231,14 @@ def load_single_cell_dataframes_original_structure():
     """
     Loads single-cell data, organized by category (Germ/Somatic).
     Standardizes column names to 'gene name', 'Scaled_TPM', 'group number'.
-    Uses st.file_manager to get the actual path of uploaded files.
+    Reverting to direct file path access.
     """
     all_single_cell_dfs = {}
     for category, files_map in SINGLE_CELL_FILES_DISPLAY_MAP.items():
         category_dfs = {}
         for display_name, filename in files_map.items():
-            # Use st.file_manager to get the actual path of the uploaded file
-            file_path = st.file_manager.get_uploaded_file_path(filename)
-            
-            if file_path is None:
-                st.warning(f"Single-cell file not found: '{filename}' in category '{category}'. It will not be available in the dropdown. Please ensure the file is uploaded and accessible.")
-                continue # Skip to the next file if this one isn't found
+            # Reverting to direct path access, assuming files are in the same directory or accessible via relative path
+            file_path = filename 
             
             try:
                 df_sc = pd.read_csv(file_path, sep='\t')
@@ -264,6 +255,9 @@ def load_single_cell_dataframes_original_structure():
                         df_sc[col] = pd.to_numeric(df_sc[col], errors='coerce')
                 df_sc.dropna(inplace=True)
                 category_dfs[display_name] = df_sc
+            except FileNotFoundError:
+                st.warning(f"Single-cell file not found: '{filename}' in category '{category}'. It will not be available in the dropdown. Please ensure the file exists in your repository's root directory or the specified path.")
+                continue # Skip to the next file if this one isn't found
             except Exception as e:
                 st.error(f"Error loading single-cell data '{filename}' in category '{category}': {e}")
         all_single_cell_dfs[category] = category_dfs
@@ -514,7 +508,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
                 hovertemplate='%{text}<extra></extra>'
             ))
 
-    fem1_in_selected_groups = selected_groups_data_for_plot3[selected_groups_data_for_plot3[gene_col] == 'fem-1']
+    fem1_in_selected_groups = selected_groups_data_for_plot3[fem1_data_original['Gene Name'] == 'fem-1']
     if not fem1_in_selected_groups.empty:
         fem1_hover_text_plot3 = (
             f"<b>{fem1_in_selected_groups[gene_col].iloc[0]}</b>"
