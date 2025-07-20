@@ -74,6 +74,18 @@ single_cell_dataframes = load_single_cell_dataframes()
 regular_dot_size = 5
 fem1_dot_size = 10
 
+# Helper function to get sorted unique groups for comparison legend
+def get_sorted_groups(df, group_col):
+    try:
+        # Convert to numeric first for proper sorting, then back to string
+        return sorted(df[group_col].dropna().astype(str).unique(), key=lambda x: int(x) if x.isdigit() else x)
+    except:
+        # Fallback for non-numeric group names
+        return sorted(df[group_col].dropna().astype(str).unique())
+
+early_embryo_groups_sorted = get_sorted_groups(df_original, 'Group')
+single_cell_groups_sorted = get_sorted_groups(single_cell_dataframes['Mature sperm'] if 'Mature sperm' in single_cell_dataframes else pd.DataFrame(), 'group number') # Use a sample SC dataframe or empty if none
+
 # --- Helper Functions for Plotting ---
 def create_aggregated_hover_data_flexible(df_to_process, gene_col, mean_col, std_dev_col, group_col, round_decimals=3):
     if df_to_process.empty:
@@ -237,9 +249,6 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         xaxis_type='log',
         yaxis_type='log',
         xaxis_exponentformat='power',
-        xaxis_showexponent='all',
-        xaxis_tickformat='e',
-        yaxis_exponentformat='power',
         yaxis_showexponent='all',
         yaxis_tickformat='e',
         xaxis_tickangle=90,
@@ -328,8 +337,8 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         yaxis_exponentformat='power',
         yaxis_showexponent='all',
         yaxis_tickformat='e',
-        xaxis_tickangle=90,       # Rotate x-axis labels
-        yaxis_tickangle=0,        # Keep y-axis labels horizontal
+        xaxis_tickangle=90,        # Rotate x-axis labels
+        yaxis_tickangle=0,         # Keep y-axis labels horizontal
         width=900,
         height=600,
         legend_title_text='Group'
@@ -423,6 +432,9 @@ def home_page():
     # Custom CSS for styling (moved from top to here, specific to home page)
     st.markdown("""
     <style>
+        .stApp {
+            background-color: white; /* Changed background to white */
+        }
         .main > div {
             padding-top: 1rem;
             padding-bottom: 1rem;
@@ -446,7 +458,7 @@ def home_page():
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
             text-align: center;
             line-height: 1.2;
-            transform: translateX(-10px);
+            /* Removed transform: translateX(-10px); to avoid initial shift */
         }
         
         .hero-slogan {
@@ -458,18 +470,18 @@ def home_page():
         
         /* Override Streamlit button styling completely */
         div.stButton > button:first-child {
-            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%) !important;
-            color: white !important;
-            border: none !important;
+            background: linear-gradient(45deg, #e0e0e0 0%, #c0c0c0 100%) !important; /* Lighter background for white page */
+            color: black !important; /* Black font for white background */
+            border: 2px solid #667eea !important; /* Add a subtle border */
             border-radius: 25px !important;
-            font-size: 8rem !important;
+            font-size: 2.5rem !important; /* Adjusted font size for better fit */
             font-weight: bold !important;
-            width: 600px !important;
-            height: 120px !important;
+            width: 400px !important; /* Adjusted width for centering */
+            height: 80px !important; /* Adjusted height */
             transition: all 0.3s ease !important;
             box-shadow: 0 8px 25px rgba(0,0,0,0.3) !important;
-            margin: 1rem auto !important;
-            display: block !important;
+            margin: 1rem auto !important; /* Center the buttons */
+            display: block !important; /* Ensure they take full width for margin auto to work */
             line-height: 0.8 !important;
             padding: 0 !important;
         }
@@ -477,7 +489,7 @@ def home_page():
         div.stButton > button:first-child:hover {
             transform: translateY(-5px) !important;
             box-shadow: 0 12px 35px rgba(0,0,0,0.4) !important;
-            background: linear-gradient(45deg, #5a6fd8 0%, #6a4190 100%) !important;
+            background: linear-gradient(45deg, #d0d0d0 0%, #b0b0b0 100%) !important; /* Slightly darker on hover */
         }
         
         div.stButton > button:first-child:active {
@@ -487,9 +499,9 @@ def home_page():
         .button-container {
             display: flex;
             flex-direction: column;
-            align-items: center;
+            align-items: center; /* Center items horizontally */
             gap: 1.5rem;
-            margin: 1rem auto;
+            margin: 1rem auto; /* Center the container itself */
             max-width: 700px;
         }
         
@@ -550,7 +562,7 @@ def home_page():
             color: white;
             box-shadow: 0 5px 15px rgba(0,0,0,0.2);
             margin: 1rem 0;
-            height: 520px;
+            height: 520px; /* Adjusted to try and fit content better */
             display: flex;
             flex-direction: column;
         }
@@ -597,14 +609,15 @@ def home_page():
         }
         
         .footer-section {
-            background-color: #f8f9fa;
+            background-color: #f8f9fa; /* Lighter background for white page */
             border-radius: 10px;
             padding: 1.5rem;
-            margin-top: 3rem;
+            margin-top: 1rem; /* Adjusted margin-top to bring it closer to buttons */
             text-align: center;
             max-width: 800px;
             margin-left: auto;
             margin-right: auto;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1); /* Added subtle shadow */
         }
         
         .contact-info {
@@ -620,30 +633,8 @@ def home_page():
             border-top: 1px solid #ddd;
             padding-top: 1rem;
         }
-        .main-page-button {
-            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%) !important;
-            color: white !important;
-            border: none !important;
-            border-radius: 25px !important;
-            font-size: 2.5rem !important; /* Adjusted font size for sub-buttons */
-            font-weight: bold !important;
-            width: 400px !important; /* Adjusted width for sub-buttons */
-            height: 80px !important; /* Adjusted height for sub-buttons */
-            transition: all 0.3s ease !important;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3) !important;
-            margin: 1rem auto !important;
-            display: block !important;
-            line-height: 0.8 !important;
-            padding: 0 !important;
-        }
-        .main-page-button:hover {
-            transform: translateY(-5px) !important;
-            box-shadow: 0 12px 35px rgba(0,0,0,0.4) !important;
-            background: linear-gradient(45deg, #5a6fd8 0%, #6a4190 100%) !important;
-        }
-        .main-page-button:active {
-            transform: translateY(-2px) !important;
-        }
+        /* The .main-page-button styles were for the old design, adjusting them to use the new div.stButton styles */
+        /* Removed .main-page-button specific styles as they are now handled by the general stButton override */
     </style>
     """, unsafe_allow_html=True)
 
@@ -698,6 +689,19 @@ def home_page():
             
         st.markdown('</div>', unsafe_allow_html=True)
 
+        # Footer section with contact info and quote - MOVED HERE
+        st.markdown("""
+        <div class="footer-section">
+            <div class="contact-info">
+                If you have any questions, email <a href="mailto:sarora@rockefeller.edu" style="color: #667eea; text-decoration: none; font-weight: bold;">sarora@rockefeller.edu</a> or text at <a href="tel:+19089302303" style="color: #667eea; text-decoration: none; font-weight: bold;">(908) 930-2303</a>
+            </div>
+            <div class="quote-section">
+                "The good thing about science is that it's true whether or not you believe in it."<br>
+                <small>- Neil deGrasse Tyson</small>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
     # Right sidebar content
     with right_col:
         st.markdown("""
@@ -716,19 +720,6 @@ def home_page():
         <div class="floating-emoji">📊</div>
         <div class="floating-emoji">🔍</div>
         """, unsafe_allow_html=True)
-
-    # Footer section with contact info and quote
-    st.markdown("""
-    <div class="footer-section">
-        <div class="contact-info">
-            If you have any questions, email <a href="mailto:sarora@rockefeller.edu" style="color: #667eea; text-decoration: none; font-weight: bold;">sarora@rockefeller.edu</a> or text at <a href="tel:+19089302303" style="color: #667eea; text-decoration: none; font-weight: bold;">(908) 930-2303</a>
-        </div>
-        <div class="quote-section">
-            "The good thing about science is that it's true whether or not you believe in it."<br>
-            <small>- Neil deGrasse Tyson</small>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
 
     # Add some decorative elements
     st.markdown("<br>", unsafe_allow_html=True)
@@ -780,7 +771,7 @@ def processed_data_landing_page():
     # You can add more buttons or content here as you develop the processed data features
     # Example:
     # if st.button("Explore Single-Cell Data (Coming Soon!)"):
-    #     st.write("Stay tuned for interactive single-cell analysis tools!")
+    #       st.write("Stay tuned for interactive single-cell analysis tools!")
 
 
 # --- Existing Page Functions (Modified for power of 10 axis labels) ---
