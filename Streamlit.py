@@ -14,7 +14,6 @@ st.set_page_config(
 )
 
 # --- Global Data Loading and Constants ---
-# Assuming AnalysisFile2.txt is also managed by the file manager or is in the default accessible path
 input_file_path = "AnalysisFile2.txt"
 
 # Updated: Nested dictionary for single-cell data files, categorized by Germ and Somatic
@@ -212,7 +211,6 @@ fem1_dot_size = 10
 def load_original_data(path):
     """Loads and preprocesses the original AnalysisFile2.txt data."""
     try:
-        # Reverting to direct path access, assuming files are in the same directory or accessible via relative path
         df_loaded = pd.read_csv(path, sep='\t')
         for col in ['Mean of Geneid Strains', 'Standard Deviation of Geneid Strains', 'Group']:
             df_loaded[col] = pd.to_numeric(df_loaded[col], errors='coerce')
@@ -231,13 +229,11 @@ def load_single_cell_dataframes_original_structure():
     """
     Loads single-cell data, organized by category (Germ/Somatic).
     Standardizes column names to 'gene name', 'Scaled_TPM', 'group number'.
-    Reverting to direct file path access.
     """
     all_single_cell_dfs = {}
     for category, files_map in SINGLE_CELL_FILES_DISPLAY_MAP.items():
         category_dfs = {}
         for display_name, filename in files_map.items():
-            # Reverting to direct path access, assuming files are in the same directory or accessible via relative path
             file_path = filename 
             
             try:
@@ -508,7 +504,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
                 hovertemplate='%{text}<extra></extra>'
             ))
 
-    fem1_in_selected_groups = selected_groups_data_for_plot3[fem1_data_original['Gene Name'] == 'fem-1']
+    fem1_in_selected_groups = selected_groups_data_for_plot3[selected_groups_data_for_plot3[gene_col] == 'fem-1']
     if not fem1_in_selected_groups.empty:
         fem1_hover_text_plot3 = (
             f"<b>{fem1_in_selected_groups[gene_col].iloc[0]}</b>"
@@ -714,96 +710,96 @@ def home_page():
             border-radius: 15px;
             color: white;
             text-align: center;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            box_shadow: 0 5px 15px rgba(0,0,0,0.2);
             margin: 1rem 0;
-            height: fit-content;
+            height: fit_content;
         }
         
         .side-panel h3 {
-            margin-bottom: 1rem;
-            font-size: 1.5rem;
+            margin_bottom: 1rem;
+            font_size: 1.5rem;
         }
         
         .side-panel p {
-            font-size: 1rem;
+            font_size: 1rem;
             opacity: 0.9;
-            line-height: 1.4;
+            line_height: 1.4;
         }
         
-        .helpful-links {
-            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        .helpful_links {
+            background: linear_gradient(135deg, #a8edea 0%, #fed6e3 100%);
             padding: 1.5rem;
-            border-radius: 15px;
+            border_radius: 15px;
             color: #333;
-            text-align: center;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text_align: center;
+            box_shadow: 0 5px 15px rgba(0,0,0,0.1);
             margin: 1rem 0;
         }
         
-        .helpful-links h3 {
+        .helpful_links h3 {
             color: #667eea;
-            margin-bottom: 1rem;
-            font-size: 1.3rem;
+            margin_bottom: 1rem;
+            font_size: 1.3rem;
         }
         
-        .helpful-links a {
+        .helpful_links a {
             display: block;
             color: #667eea;
-            text-decoration: none;
+            text_decoration: none;
             margin: 0.5rem 0;
-            font-weight: bold;
+            font_weight: bold;
         }
         
-        .helpful-links a:hover {
-            text-decoration: underline;
+        .helpful_links a:hover {
+            text_decoration: underline;
         }
         
-        .research-objectives {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .research_objectives {
+            background: linear_gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 2rem;
-            border-radius: 15px;
+            border_radius: 15px;
             color: white;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            box_shadow: 0 5px 15px rgba(0,0,0,0.2);
             margin: 1rem 0;
             height: 520px; /* Adjusted to try and fit content better */
             display: flex;
-            flex-direction: column;
+            flex_direction: column;
         }
         
-        .research-objectives h3 {
-            margin-bottom: 1.5rem;
-            font-size: 1.5rem;
-            text-align: center;
+        .research_objectives h3 {
+            margin_bottom: 1.5rem;
+            font_size: 1.5rem;
+            text_align: center;
         }
         
-        .research-objectives ol {
-            text-align: left;
-            padding-left: 1rem;
-            flex-grow: 1;
+        .research_objectives ol {
+            text_align: left;
+            padding_left: 1rem;
+            flex_grow: 1;
             display: flex;
-            flex-direction: column;
-            justify-content: space-around;
+            flex_direction: column;
+            justify_content: space_around;
         }
         
-        .research-objectives li {
-            margin-bottom: 1.5rem;
-            line-height: 1.4;
-            font-size: 0.95rem;
+        .research_objectives li {
+            margin_bottom: 1.5rem;
+            line_height: 1.4;
+            font_size: 0.95rem;
         }
         
-        .floating-emoji {
-            font-size: 3rem;
-            animation: float 3s ease-in-out infinite;
-            display: inline-block;
+        .floating_emoji {
+            font_size: 3rem;
+            animation: float 3s ease_in_out infinite;
+            display: inline_block;
             margin: 0.5rem;
         }
         
-        .floating-emoji:nth-child(2) {
-            animation-delay: 0.5s;
+        .floating_emoji:nth_child(2) {
+            animation_delay: 0.5s;
         }
         
-        .floating-emoji:nth-child(3) {
-            animation-delay: 1s;
+        .floating_emoji:nth_child(3) {
+            animation_delay: 1s;
         }
         
         @keyframes float {
@@ -811,30 +807,30 @@ def home_page():
             50% { transform: translateY(-10px); }
         }
         
-        .footer-section {
-            background-color: #f8f9fa; /* Lighter background for white page */
-            border-radius: 10px;
+        .footer_section {
+            background_color: #f8f9fa; /* Lighter background for white page */
+            border_radius: 10px;
             padding: 1.5rem;
-            margin-top: 1rem; /* Adjusted margin-top to bring it closer to buttons */
-            text-align: center;
-            max-width: 800px;
-            margin-left: auto;
-            margin-right: auto;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1); /* Added subtle shadow */
+            margin_top: 1rem; /* Adjusted margin_top to bring it closer to buttons */
+            text_align: center;
+            max_width: 800px;
+            margin_left: auto;
+            margin_right: auto;
+            box_shadow: 0 5px 15px rgba(0,0,0,0.1); /* Added subtle shadow */
         }
         
-        .contact-info {
-            font-size: 0.9rem;
+        .contact_info {
+            font_size: 0.9rem;
             color: #666;
-            margin-bottom: 1rem;
+            margin_bottom: 1rem;
         }
         
-        .quote-section {
-            font-style: italic;
+        .quote_section {
+            font_style: italic;
             color: #555;
-            font-size: 1rem;
-            border-top: 1px solid #ddd;
-            padding-top: 1rem;
+            font_size: 1rem;
+            border_top: 1px solid #ddd;
+            padding_top: 1rem;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -852,7 +848,7 @@ def home_page():
         """, unsafe_allow_html=True)
         
         st.markdown("""
-        <div class="helpful-links">
+        <div class="helpful_links">
             <h3>🔗 Helpful Links</h3>
             <a href="https://docs.google.com/document/d/1kNxQVg3Y1rGJ9-6C6icEoDH44qDx5zQPyCPlS7HfsiY/edit?usp=sharing" target="_blank">Methods Document</a>
             <a href="https://37nyza-abbas-ghaddar.shinyapps.io/shiny_webpage/" target="_blank">Single Cell Database</a>
@@ -861,22 +857,22 @@ def home_page():
         """, unsafe_allow_html=True)
         
         st.markdown("""
-        <div class="floating-emoji">🧪</div>
-        <div class="floating-emoji">⚗️</div>
-        <div class="floating-emoji">🔬</div>
+        <div class="floating_emoji">🧪</div>
+        <div class="floating_emoji">⚗️</div>
+        <div class="floating_emoji">🔬</div>
         """, unsafe_allow_html=True)
 
     # Center content
     with center_col:
         # Hero Section - smaller and pushed up
         st.markdown("""
-        <div class="hero-section">
-            <div class="hero-title">🧬 Saurish and Xander's<br>Biomart 🔬</div>
-            <div class="hero-slogan">Science for the benefit of humanity</div>
+        <div class="hero_section">
+            <div class="hero_title">🧬 Saurish and Xander's<br>Biomart 🔬</div>
+            <div class="hero_slogan">Science for the benefit of humanity</div>
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown('<div class="button-container">', unsafe_allow_html=True)
+        st.markdown('<div class="button_container">', unsafe_allow_html=True)
         
         # Original Data Button
         if st.button("📊 Original Data", key="original_data_btn", help="Access raw data tables and visualizations from the initial dataset."):
@@ -892,11 +888,11 @@ def home_page():
 
         # Footer section with contact info and quote - MOVED HERE
         st.markdown("""
-        <div class="footer-section">
-            <div class="contact-info">
-                If you have any questions, email <a href="mailto:sarora@rockefeller.edu" style="color: #667eea; text-decoration: none; font-weight: bold;">sarora@rockefeller.edu</a> or text at <a href="tel:+19089302303" style="color: #667eea; text-decoration: none; font-weight: bold;">(908) 930-2303</a>
+        <div class="footer_section">
+            <div class="contact_info">
+                If you have any questions, email <a href="mailto:sarora@rockefeller.edu" style="color: #667eea; text_decoration: none; font_weight: bold;">sarora@rockefeller.edu</a> or text at <a href="tel:+19089302303" style="color: #667eea; text_decoration: none; font_weight: bold;">(908) 930-2303</a>
             </div>
-            <div class="quote-section">
+            <div class="quote_section">
                 "The good thing about science is that it's true whether or not you believe in it."<br>
                 <small>- Neil deGrasse Tyson</small>
             </div>
@@ -906,7 +902,7 @@ def home_page():
     # Right sidebar content
     with right_col:
         st.markdown("""
-        <div class="research-objectives">
+        <div class="research_objectives">
             <h3>🎯 Research Objectives</h3>
             <ol>
                 <li>To recapitulate and characterize fem-1–related phenotypes through targeted genetic crosses to confirm parent-of-origin effects.</li>
@@ -917,15 +913,15 @@ def home_page():
         """, unsafe_allow_html=True)
         
         st.markdown("""
-        <div class="floating-emoji">🧬</div>
-        <div class="floating-emoji">📊</div>
-        <div class="floating-emoji">🔍</div>
+        <div class="floating_emoji">🧬</div>
+        <div class="floating_emoji">📊</div>
+        <div class="floating_emoji">🔍</div>
         """, unsafe_allow_html=True)
 
     # Add some decorative elements
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("""
-    <div style="text-align: center; opacity: 0.6;">
+    <div style="text_align: center; opacity: 0.6;">
         🧪 ⚗️ 🔬 🧬 📊 📈 🔍 ⚡ 🧫 🔭 ⚛️ 🌡️
     </div>
     """, unsafe_allow_html=True)
@@ -945,21 +941,21 @@ def original_data_landing_page():
     col1, col2, col3 = st.columns(3) # Added a third column for the new button
 
     with col1:
-        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True) # Smaller max-width for these buttons
+        st.markdown('<div class="button_container" style="max_width: 250px;">', unsafe_allow_html=True) # Smaller max_width for these buttons
         if st.button("🔍 Raw Data", key="view_raw_data_tables", help="Browse the raw 'AnalysisFile2.txt' data."):
             st.session_state.page = "raw_data"
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
-        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True) # Smaller max-width for these buttons
+        st.markdown('<div class="button_container" style="max_width: 250px;">', unsafe_allow_html=True) # Smaller max_width for these buttons
         if st.button("📈 Visualizations", key="view_visualizations", help="See plots and graphs generated from the 'AnalysisFile2.txt' data."):
             st.session_state.page = "visualizations"
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col3: # New column for Comparisons button
-        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
+        st.markdown('<div class="button_container" style="max_width: 250px;">', unsafe_allow_html=True)
         if st.button("🔄 Comparisons", key="view_comparisons", help="Compare gene expression across different datasets."):
             st.session_state.page = "comparison_graphs"
             st.rerun()
