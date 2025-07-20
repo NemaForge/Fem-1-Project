@@ -200,7 +200,6 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         legend_title_text='Group'
     )
     st.plotly_chart(fig1)
-    st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">This plot uses a <b>Log10 Scale</b> for both X and Y axes to better visualize gene expression ranges.</p>', unsafe_allow_html=True)
     if removed_gene_name_plot1:
         st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_plot1}</b> (Mean: {removed_gene_mean_value_plot1:.2f}) was removed to improve plot clarity as it was the single highest outlier in "{mean_col}" across all genes.</p>', unsafe_allow_html=True)
 
@@ -265,7 +264,6 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         height=600
     )
     st.plotly_chart(fig2)
-    st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">This plot uses a <b>Log10 Scale</b> for both X and Y axes to better visualize gene expression ranges.</p>', unsafe_allow_html=True)
 
 
     st.markdown("---")
@@ -342,9 +340,6 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         xaxis_type='log', # Log scale X-axis
         yaxis_type='log', # Log scale Y-axis
         xaxis_exponentformat='power',
-        xaxis_showexponent='all',
-        xaxis_tickformat='e',
-        yaxis_exponentformat='power',
         yaxis_showexponent='all',
         yaxis_tickformat='e',
         xaxis_tickangle=90,        # Rotate x-axis labels
@@ -354,7 +349,6 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         legend_title_text='Group'
     )
     st.plotly_chart(fig3)
-    st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">This plot uses a <b>Log10 Scale</b> for both X and Y axes to better visualize gene expression ranges.</p>', unsafe_allow_html=True)
     if removed_gene_name_plot3:
         st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_plot3}</b> (Mean: {removed_gene_mean_value_plot3:.2f}) was removed to improve plot clarity as it was the single highest outlier in "{mean_col}" within {group_col}s 8, 9, and 10.</p>', unsafe_allow_html=True)
 
@@ -432,7 +426,6 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
         legend_title_text='Group'
     )
     st.plotly_chart(fig_sc)
-    st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">This plot uses a <b>Log10 Scale</b> for the X-axis to better visualize gene expression ranges.</p>', unsafe_allow_html=True)
     if removed_gene_name_plot_sc:
         st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_plot_sc}</b> ({tpm_col}: {removed_gene_tpm_value_plot_sc:.2f}) was removed to improve plot clarity as it was the single highest outlier in "{tpm_col}".</p>', unsafe_allow_html=True)
 
@@ -752,22 +745,29 @@ def original_data_landing_page():
 
     st.markdown("---")
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3) # Added a third column for the new button
 
     with col1:
-        # Re-using the general button styling for consistency and centering
-        st.markdown('<div class="button-container" style="max-width: 300px;">', unsafe_allow_html=True) # Smaller max-width for these buttons
-        if st.button("🔍 View Raw Data Tables", key="view_raw_data_tables", help="Browse the raw 'AnalysisFile2.txt' data."):
+        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True) # Smaller max-width for these buttons
+        if st.button("🔍 Raw Data", key="view_raw_data_tables", help="Browse the raw 'AnalysisFile2.txt' data."):
             st.session_state.page = "raw_data"
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
-        st.markdown('<div class="button-container" style="max-width: 300px;">', unsafe_allow_html=True) # Smaller max-width for these buttons
-        if st.button("📈 View Visualizations", key="view_visualizations", help="See plots and graphs generated from the 'AnalysisFile2.txt' data."):
+        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True) # Smaller max-width for these buttons
+        if st.button("📈 Visualizations", key="view_visualizations", help="See plots and graphs generated from the 'AnalysisFile2.txt' data."):
             st.session_state.page = "visualizations"
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
+
+    with col3: # New column for Comparisons button
+        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
+        if st.button("🔄 Comparisons", key="view_comparisons", help="Compare gene expression across different datasets."):
+            st.session_state.page = "comparison_graphs"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
 
 # --- Processed Data Landing Page (Currently Blank) ---
 def processed_data_landing_page():
@@ -785,256 +785,199 @@ def processed_data_landing_page():
     # if st.button("Explore Single-Cell Data (Coming Soon!)"):
     #       st.write("Stay tuned for interactive single-cell analysis tools!")
 
+# --- New Comparison Graphs Page ---
+def comparison_page():
+    st.header("Gene Expression Comparison Graphs")
+    st.write("Compare gene expression between the 'Early Embryo' dataset and a selected single-cell dataset.")
 
-# --- Existing Page Functions (Modified for power of 10 axis labels) ---
-def visualizations_page():
-    st.header("Gene Expression Visualizations")
-    st.write("Explore gene expression patterns through interactive scatter plots.")
-
-    if st.button("🏠 Back to Home", key="viz_back_home"):
+    if st.button("🏠 Back to Home", key="comp_back_home"):
         st.session_state.page = "home"
         st.rerun()
     
     st.markdown("---")
 
-    visualization_type = st.radio(
-        "Select Visualization Type:",
-        ("Early Embryo Data", "Single-Cell Data", "Comparison Graphs"),
-        key="viz_type_radio"
+    if not single_cell_dataframes:
+        st.warning("No single-cell processed data files found or loaded to perform comparisons.")
+        return
+
+    single_cell_display_options = list(single_cell_dataframes.keys())
+    selected_comparison_dataset = st.selectbox(
+        "Choose a Single-Cell Dataset for Comparison:",
+        single_cell_display_options,
+        key="selected_comparison_dataset"
     )
 
-    st.markdown("---")
+    if selected_comparison_dataset:
+        sc_df_for_comparison = single_cell_dataframes[selected_comparison_dataset]
 
-    if visualization_type == "Early Embryo Data":
-        st.subheader("Early Embryo Data Visualizations")
-        st.write("These plots display gene expression patterns from the original 'AnalysisFile2.txt' dataset.")
+        df_original_renamed = df_original.rename(columns={'Gene Name': 'gene_common'})
+        sc_df_for_comparison_renamed = sc_df_for_comparison.rename(columns={'gene name': 'gene_common'})
+
+        merged_df = pd.merge(
+            df_original_renamed[['gene_common', 'Mean of Geneid Strains', 'Group']],
+            sc_df_for_comparison_renamed[['gene_common', 'Scaled_TPM', 'group number']],
+            on='gene_common',
+            how='inner'
+        )
         
-        plot_gene_expression_set(
-            df_original, 
-            fem1_data_original, 
-            "Early Embryo", 
-            'Gene Name', 
-            'Mean of Geneid Strains', 
-            'Standard Deviation of Geneid Strains', 
-            'Group',
-            {str(g): px.colors.qualitative.Plotly[i % len(px.colors.qualitative.Plotly)] 
-             for i, g in enumerate(sorted(df_original['Group'].unique(), key=lambda x: str(x)))}
-        )
+        merged_df_sorted = merged_df.sort_values(by='gene_common').reset_index(drop=True)
 
-    elif visualization_type == "Single-Cell Data":
-        st.subheader("Single-Cell Data Visualizations")
-        st.write("Select a single-cell dataset to view its gene expression patterns.")
-
-        if not single_cell_dataframes:
-            st.warning("No single-cell processed data files found or loaded. Please ensure they exist in the specified directory.")
+        if merged_df_sorted.empty:
+            st.warning(f"No common genes found between 'Early Embryo' and '{selected_comparison_dataset}' for comparison.")
             return
 
-        single_cell_display_options = list(single_cell_dataframes.keys())
-        selected_single_cell_dataset = st.selectbox(
-            "Choose a Single-Cell Dataset:",
-            single_cell_display_options,
-            key="selected_sc_viz_dataset"
-        )
+        # Determine and remove the highest outlier gene to improve plot clarity
+        removed_gene_name_comp = None
+        removed_expr_value_comp = None
+        removed_dataset_comp = None
 
-        if selected_single_cell_dataset:
-            current_sc_df = single_cell_dataframes[selected_single_cell_dataset]
-            fem1_data_sc = current_sc_df[current_sc_df['gene name'] == 'fem-1']
+        # Check for outliers in both datasets' expression columns
+        max_early_embryo_expr = merged_df_sorted['Mean of Geneid Strains'].max()
+        max_single_cell_expr = merged_df_sorted['Scaled_TPM'].max()
 
-            sc_group_color_map = {
-                str(g): px.colors.qualitative.D3[i % len(px.colors.qualitative.D3)]
-                for i, g in enumerate(range(1, 11))
-            }
-
-            plot_single_cell_expression_set(
-                current_sc_df,
-                fem1_data_sc,
-                selected_single_cell_dataset,
-                'gene name',
-                'Scaled_TPM',
-                'group number',
-                sc_group_color_map
-            )
-
-
-    elif visualization_type == "Comparison Graphs":
-        st.subheader("Comparison Graphs: Early Embryo vs. Single-Cell Data")
-        st.write("Compare gene expression between the 'Early Embryo' dataset and a selected single-cell dataset.")
-
-        if not single_cell_dataframes:
-            st.warning("No single-cell processed data files found or loaded to perform comparisons.")
-            return
-
-        single_cell_display_options = list(single_cell_dataframes.keys())
-        selected_comparison_dataset = st.selectbox(
-            "Choose a Single-Cell Dataset for Comparison:",
-            single_cell_display_options,
-            key="selected_comparison_dataset"
-        )
-
-        if selected_comparison_dataset:
-            sc_df_for_comparison = single_cell_dataframes[selected_comparison_dataset]
-
-            df_original_renamed = df_original.rename(columns={'Gene Name': 'gene_common'})
-            sc_df_for_comparison_renamed = sc_df_for_comparison.rename(columns={'gene name': 'gene_common'})
-
-            merged_df = pd.merge(
-                df_original_renamed[['gene_common', 'Mean of Geneid Strains', 'Group']],
-                sc_df_for_comparison_renamed[['gene_common', 'Scaled_TPM', 'group number']],
-                on='gene_common',
-                how='inner'
-            )
-            
-            merged_df_sorted = merged_df.sort_values(by='gene_common').reset_index(drop=True)
-
-            if merged_df_sorted.empty:
-                st.warning(f"No common genes found between 'Early Embryo' and '{selected_comparison_dataset}' for comparison.")
-                return
-
-            max_early_embryo_expr = merged_df_sorted['Mean of Geneid Strains'].max()
-            max_single_cell_expr = merged_df_sorted['Scaled_TPM'].max()
-
-            removed_gene_name_comp = None
-            removed_expr_value_comp = None
-            removed_dataset_comp = None
-
-            if max_early_embryo_expr >= max_single_cell_expr:
-                outlier_row = merged_df_sorted.loc[merged_df_sorted['Mean of Geneid Strains'].idxmax()]
+        if max_early_embryo_expr >= max_single_cell_expr:
+            outlier_row = merged_df_sorted.loc[merged_df_sorted['Mean of Geneid Strains'].idxmax()]
+            if outlier_row['gene_common'] != 'fem-1': # Don't remove fem-1 if it's the outlier
                 removed_gene_name_comp = outlier_row['gene_common']
                 removed_expr_value_comp = outlier_row['Mean of Geneid Strains']
                 removed_dataset_comp = "Early Embryo"
-            else:
-                outlier_row = merged_df_sorted.loc[merged_df_sorted['Scaled_TPM'].idxmax()]
+        else:
+            outlier_row = merged_df_sorted.loc[merged_df_sorted['Scaled_TPM'].idxmax()]
+            if outlier_row['gene_common'] != 'fem-1': # Don't remove fem-1 if it's the outlier
                 removed_gene_name_comp = outlier_row['gene_common']
                 removed_expr_value_comp = outlier_row['Scaled_TPM']
                 removed_dataset_comp = selected_comparison_dataset
-            
-            if removed_gene_name_comp:
-                merged_df_sorted = merged_df_sorted[merged_df_sorted['gene_common'] != removed_gene_name_comp].copy()
+        
+        if removed_gene_name_comp:
+            merged_df_sorted = merged_df_sorted[merged_df_sorted['gene_common'] != removed_gene_name_comp].copy()
 
 
-            st.markdown("---")
-            st.subheader("Search Gene for Highlight & Difference")
-            search_gene_comp = st.text_input("Enter Gene Name to Highlight (e.g., fem-1):", key="search_gene_comp").strip()
+        st.markdown("---")
+        st.subheader("Search Gene for Highlight & Difference")
+        search_gene_comp = st.text_input("Enter Gene Name to Highlight (e.g., fem-1):", key="search_gene_comp").strip()
 
-            fig_comp = go.Figure()
+        fig_comp = go.Figure()
 
-            # Define marker symbols for Early Embryo groups (10 distinct symbols)
-            marker_symbols_ee = ['circle', 'square', 'diamond', 'cross', 'x', 'triangle-up', 'triangle-down', 'pentagon', 'hexagon', 'star']
-            
-            # Create color map for Single-Cell groups (10 colors)
-            single_cell_colors = px.colors.qualitative.D3
-            single_cell_color_map = {str(g): single_cell_colors[i % len(single_cell_colors)] for i, g in enumerate(range(1, 11))}
+        # Create color map for Single-Cell groups (10 colors)
+        single_cell_colors = px.colors.qualitative.D3
+        single_cell_color_map = {str(g): single_cell_colors[i % len(single_cell_colors)] for i, g in enumerate(range(1, 11))}
 
-            # Add traces for actual data points
-            for ee_group in early_embryo_groups_sorted:
-                ee_symbol = marker_symbols_ee[int(ee_group) % len(marker_symbols_ee)]
-                subset_ee_df = merged_df_sorted[merged_df_sorted['Group'] == ee_group]
+        # Add traces for actual data points (colored by Single-Cell Group)
+        for sc_group in single_cell_groups_sorted:
+            subset_sc_df = merged_df_sorted[merged_df_sorted['group number'] == int(sc_group)] # Ensure int for comparison with group number
+            if not subset_sc_df.empty:
+                fig_comp.add_trace(go.Scatter(
+                    x=subset_sc_df['Mean of Geneid Strains'],
+                    y=subset_sc_df['Scaled_TPM'],
+                    mode='markers',
+                    name=f'SC Group {sc_group}', # Legend for SC groups
+                    marker=dict(
+                        size=regular_dot_size,
+                        color=single_cell_color_map.get(str(sc_group), 'gray'),
+                        symbol='circle' # All points are circles
+                    ),
+                    hoverinfo='text',
+                    text=[
+                        f"<b>{row['gene_common']}</b><br>EE Expr: {row['Mean of Geneid Strains']:.2f} (Group: {row['Group']})"
+                        f"<br>SC Expr: {row['Scaled_TPM']:.2f} (Group: {row['group number']})"
+                        for idx, row in subset_sc_df.iterrows()
+                    ],
+                    hovertemplate='%{text}<extra></extra>'
+                ))
+        
+        # Add vertical lines for Early Embryo group max expression
+        shapes = []
+        for ee_group in early_embryo_groups_sorted:
+            ee_group_data = merged_df_sorted[merged_df_sorted['Group'] == ee_group]
+            if not ee_group_data.empty and 'Mean of Geneid Strains' in ee_group_data.columns:
+                max_ee_expr = ee_group_data['Mean of Geneid Strains'].max()
+                if pd.notna(max_ee_expr): # Check for NaN after max()
+                    shapes.append(
+                        dict(
+                            type="line",
+                            xref="x", yref="paper",
+                            x0=max_ee_expr, y0=0,
+                            x1=max_ee_expr, y1=1,
+                            line=dict(color="LightCoral", width=2, dash="dash"),
+                            name=f'EE Group {ee_group} Max',
+                            layer='below' # Draw lines below scatter points
+                        )
+                    )
+        fig_comp.update_layout(shapes=shapes)
 
-                if not subset_ee_df.empty:
-                    point_colors = [single_cell_color_map.get(str(sc_g), 'gray') for sc_g in subset_ee_df['group number']]
+        # Add a dummy trace for the vertical line legend entry
+        fig_comp.add_trace(go.Scatter(
+            x=[None], y=[None],
+            mode='lines',
+            line=dict(color="LightCoral", width=2, dash="dash"),
+            name='Early Embryo Group Max Expression',
+            hoverinfo='none'
+        ))
 
+
+        # Highlight searched gene if found
+        if search_gene_comp:
+            highlighted_data = merged_df_sorted[merged_df_sorted['gene_common'].str.lower() == search_gene_comp.lower()]
+            if not highlighted_data.empty:
+                for idx, row in highlighted_data.iterrows():
                     fig_comp.add_trace(go.Scatter(
-                        x=subset_ee_df['Mean of Geneid Strains'],
-                        y=subset_ee_df['Scaled_TPM'],
+                        x=[row['Mean of Geneid Strains']],
+                        y=[row['Scaled_TPM']],
                         mode='markers',
                         showlegend=False,
                         marker=dict(
-                            size=regular_dot_size,
-                            color=point_colors,
-                            symbol=ee_symbol
+                            size=fem1_dot_size * 2,
+                            color='cyan',
+                            symbol='star',
+                            line=dict(width=3, color='darkblue')
                         ),
                         hoverinfo='text',
                         text=[
                             f"<b>{row['gene_common']}</b><br>EE Expr: {row['Mean of Geneid Strains']:.2f} (Group: {row['Group']})"
                             f"<br>SC Expr: {row['Scaled_TPM']:.2f} (Group: {row['group number']})"
-                            for idx, row in subset_ee_df.iterrows()
+                            f"<br>HIGHLIGHTED"
                         ],
                         hovertemplate='%{text}<extra></extra>'
                     ))
-            
-            # Create dummy traces for legend: 10 for Early Embryo shapes, 10 for Single-Cell colors
-            for i, ee_group in enumerate(early_embryo_groups_sorted):
-                fig_comp.add_trace(go.Scatter(
-                    x=[None], y=[None],
-                    mode='markers',
-                    name=f'EE Group {ee_group} (Shape: {marker_symbols_ee[i % len(marker_symbols_ee)]})',
-                    marker=dict(size=regular_dot_size, color='gray', symbol=marker_symbols_ee[i % len(marker_symbols_ee)]),
-                    hoverinfo='none'
-                ))
 
-            for i, sc_group in enumerate(single_cell_groups_sorted):
-                fig_comp.add_trace(go.Scatter(
-                    x=[None], y=[None],
-                    mode='markers',
-                    name=f'SC Group {sc_group} (Color)',
-                    marker=dict(size=regular_dot_size, color=single_cell_color_map.get(str(sc_group), 'gray'), symbol='circle'),
-                    hoverinfo='none'
-                ))
+        fig_comp.update_layout(
+            title=f'Gene Expression Comparison: Early Embryo vs. {selected_comparison_dataset}',
+            xaxis_title='Early Embryo: Mean of Geneid Strains',
+            yaxis_title=f'{selected_comparison_dataset}: Scaled TPM',
+            font_family="Times New Roman",
+            title_font_size=20,
+            xaxis_title_font_size=14,
+            yaxis_title_font_size=14,
+            xaxis_type='log', # Set X-axis to logarithmic scale
+            yaxis_type='log', # Set Y-axis to logarithmic scale
+            xaxis_exponentformat='power',
+            xaxis_showexponent='all',
+            xaxis_tickformat='e',
+            yaxis_exponentformat='power',
+            yaxis_showexponent='all',
+            yaxis_tickformat='e',
+            xaxis_tickangle=90,
+            yaxis_tickangle=0,
+            width=900,
+            height=700,
+            hovermode='closest',
+            legend_title_text='Groupings'
+        )
+        st.plotly_chart(fig_comp)
+        st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">This plot compares the expression values of genes common to both "Early Embryo" and "{selected_comparison_dataset}" datasets. Points are colored by their Single-Cell group. Vertical dashed lines indicate the maximum "Mean of Geneid Strains" for each Early Embryo group. Standard deviation is not shown.</p>', unsafe_allow_html=True)
+        
+        if removed_gene_name_comp:
+            st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_comp}</b> (Expression: {removed_expr_value_comp:.2f} in {removed_dataset_comp}) was removed to improve plot clarity as it was the single highest outlier across both datasets.</p>', unsafe_allow_html=True)
 
-
-            # Highlight searched gene if found
-            if search_gene_comp:
-                highlighted_data = merged_df_sorted[merged_df_sorted['gene_common'].str.lower() == search_gene_comp.lower()]
-                if not highlighted_data.empty:
-                    for idx, row in highlighted_data.iterrows():
-                        fig_comp.add_trace(go.Scatter(
-                            x=[row['Mean of Geneid Strains']],
-                            y=[row['Scaled_TPM']],
-                            mode='markers',
-                            showlegend=False,
-                            marker=dict(
-                                size=fem1_dot_size * 2,
-                                color='cyan',
-                                symbol='star',
-                                line=dict(width=3, color='darkblue')
-                            ),
-                            hoverinfo='text',
-                            text=[
-                                f"<b>{row['gene_common']}</b><br>EE Expr: {row['Mean of Geneid Strains']:.2f} (Group: {row['Group']})"
-                                f"<br>SC Expr: {row['Scaled_TPM']:.2f} (Group: {row['group number']})"
-                                f"<br>HIGHLIGHTED"
-                            ],
-                            hovertemplate='%{text}<extra></extra>'
-                        ))
-
-            fig_comp.update_layout(
-                title=f'Gene Expression Comparison: Early Embryo vs. {selected_comparison_dataset}',
-                xaxis_title='Early Embryo: Mean of Geneid Strains',
-                yaxis_title=f'{selected_comparison_dataset}: Scaled TPM',
-                font_family="Times New Roman",
-                title_font_size=20,
-                xaxis_title_font_size=14,
-                yaxis_title_font_size=14,
-                xaxis_type='log', # Set X-axis to logarithmic scale
-                yaxis_type='log', # Set Y-axis to logarithmic scale
-                xaxis_exponentformat='power',
-                xaxis_showexponent='all',
-                xaxis_tickformat='e',
-                yaxis_exponentformat='power',
-                yaxis_showexponent='all',
-                yaxis_tickformat='e',
-                xaxis_tickangle=90,
-                yaxis_tickangle=0,
-                width=900,
-                height=700,
-                hovermode='closest',
-                legend_title_text='Groupings'
-            )
-            st.plotly_chart(fig_comp)
-            st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">This plot uses a <b>Log10 Scale</b> for both X and Y axes to better compare expression values across datasets.</p>', unsafe_allow_html=True)
-            
-            if removed_gene_name_comp:
-                st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_comp}</b> (Expression: {removed_expr_value_comp:.2f} in {removed_dataset_comp}) was removed to improve plot clarity as it was the single highest outlier across both datasets.</p>', unsafe_allow_html=True)
-
-            if search_gene_comp:
-                highlighted_gene_data_merged = merged_df_sorted[merged_df_sorted['gene_common'].str.lower() == search_gene_comp.lower()]
-                if not highlighted_gene_data_merged.empty:
-                    early_embryo_expr = highlighted_gene_data_merged['Mean of Geneid Strains'].iloc[0]
-                    single_cell_expr = highlighted_gene_data_merged['Scaled_TPM'].iloc[0]
-                    diff_expr = abs(early_embryo_expr - single_cell_expr)
-                    st.success(f"Expression Difference for **{search_gene_comp}**: |{early_embryo_expr:.2f} (Early Embryo) - {single_cell_expr:.2f} ({selected_comparison_dataset})| = **{diff_expr:.2f}**")
-                else:
-                    st.warning(f"Gene '{search_gene_comp}' not found in common genes for comparison.")
+        if search_gene_comp:
+            highlighted_gene_data_merged = merged_df_sorted[merged_df_sorted['gene_common'].str.lower() == search_gene_comp.lower()]
+            if not highlighted_gene_data_merged.empty:
+                early_embryo_expr = highlighted_gene_data_merged['Mean of Geneid Strains'].iloc[0]
+                single_cell_expr = highlighted_gene_data_merged['Scaled_TPM'].iloc[0]
+                diff_expr = abs(early_embryo_expr - single_cell_expr)
+                st.success(f"Expression Difference for **{search_gene_comp}**: |{early_embryo_expr:.2f} (Early Embryo) - {single_cell_expr:.2f} ({selected_comparison_dataset})| = **{diff_expr:.2f}**")
+            else:
+                st.warning(f"Gene '{search_gene_comp}' not found in common genes for comparison.")
 
 
 def raw_data_page():
@@ -1170,3 +1113,5 @@ elif st.session_state.page == "visualizations":
     visualizations_page()
 elif st.session_state.page == "raw_data":
     raw_data_page()
+elif st.session_state.page == "comparison_graphs": # New page
+    comparison_page()
