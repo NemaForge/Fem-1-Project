@@ -83,8 +83,15 @@ def get_sorted_groups(df, group_col):
         # Fallback for non-numeric group names
         return sorted(df[group_col].dropna().astype(str).unique())
 
+# Ensure these are populated only if data exists
 early_embryo_groups_sorted = get_sorted_groups(df_original, 'Group')
-single_cell_groups_sorted = get_sorted_groups(single_cell_dataframes['Mature sperm'] if 'Mature sperm' in single_cell_dataframes else pd.DataFrame(), 'group number') # Use a sample SC dataframe or empty if none
+# Assuming 'Mature sperm' is a representative single_cell_dataframe for initial group sorting
+# It's safer to check if it exists before trying to access it
+if 'Mature sperm' in single_cell_dataframes:
+    single_cell_groups_sorted = get_sorted_groups(single_cell_dataframes['Mature sperm'], 'group number')
+else:
+    single_cell_groups_sorted = [] # Or handle appropriately if no single cell data
+
 
 # --- Helper Functions for Plotting ---
 def create_aggregated_hover_data_flexible(df_to_process, gene_col, mean_col, std_dev_col, group_col, round_decimals=3):
@@ -178,8 +185,8 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         title_font_size=20,
         xaxis_title_font_size=14,
         yaxis_title_font_size=14,
-        xaxis_type='log',
-        yaxis_type='log',
+        xaxis_type='log', # Set X-axis to logarithmic scale
+        yaxis_type='log', # Set Y-axis to logarithmic scale
         xaxis_exponentformat='power', # Display exponents
         xaxis_showexponent='all',    # Show exponent for all ticks
         xaxis_tickformat='e',        # Use scientific notation for ticks
@@ -193,6 +200,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         legend_title_text='Group'
     )
     st.plotly_chart(fig1)
+    st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">This plot uses a <b>Log10 Scale</b> for both X and Y axes to better visualize gene expression ranges.</p>', unsafe_allow_html=True)
     if removed_gene_name_plot1:
         st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_plot1}</b> (Mean: {removed_gene_mean_value_plot1:.2f}) was removed to improve plot clarity as it was the single highest outlier in "{mean_col}" across all genes.</p>', unsafe_allow_html=True)
 
@@ -246,8 +254,8 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         title_font_size=20,
         xaxis_title_font_size=14,
         yaxis_title_font_size=14,
-        xaxis_type='log',
-        yaxis_type='log',
+        xaxis_type='log', # Set X-axis to logarithmic scale
+        yaxis_type='log', # Set Y-axis to logarithmic scale
         xaxis_exponentformat='power',
         yaxis_showexponent='all',
         yaxis_tickformat='e',
@@ -257,6 +265,8 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         height=600
     )
     st.plotly_chart(fig2)
+    st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">This plot uses a <b>Log10 Scale</b> for both X and Y axes to better visualize gene expression ranges.</p>', unsafe_allow_html=True)
+
 
     st.markdown("---")
 
@@ -344,6 +354,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         legend_title_text='Group'
     )
     st.plotly_chart(fig3)
+    st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">This plot uses a <b>Log10 Scale</b> for both X and Y axes to better visualize gene expression ranges.</p>', unsafe_allow_html=True)
     if removed_gene_name_plot3:
         st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_plot3}</b> (Mean: {removed_gene_mean_value_plot3:.2f}) was removed to improve plot clarity as it was the single highest outlier in "{mean_col}" within {group_col}s 8, 9, and 10.</p>', unsafe_allow_html=True)
 
@@ -411,7 +422,7 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
         font_family="Times New Roman",
         title_font_size=20,
         xaxis_title_font_size=14,
-        xaxis_type='log',
+        xaxis_type='log', # Set X-axis to logarithmic scale
         xaxis_exponentformat='power',
         xaxis_showexponent='all',
         xaxis_tickformat='e',
@@ -421,6 +432,7 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
         legend_title_text='Group'
     )
     st.plotly_chart(fig_sc)
+    st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">This plot uses a <b>Log10 Scale</b> for the X-axis to better visualize gene expression ranges.</p>', unsafe_allow_html=True)
     if removed_gene_name_plot_sc:
         st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_plot_sc}</b> ({tpm_col}: {removed_gene_tpm_value_plot_sc:.2f}) was removed to improve plot clarity as it was the single highest outlier in "{tpm_col}".</p>', unsafe_allow_html=True)
 
@@ -458,7 +470,6 @@ def home_page():
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
             text-align: center;
             line-height: 1.2;
-            /* Removed transform: translateX(-10px); to avoid initial shift */
         }
         
         .hero-slogan {
@@ -476,13 +487,15 @@ def home_page():
             border-radius: 25px !important;
             font-size: 2.5rem !important; /* Adjusted font size for better fit */
             font-weight: bold !important;
-            width: 400px !important; /* Adjusted width for centering */
+            width: 300px !important; /* Adjusted width for better centering within a flex container */
             height: 80px !important; /* Adjusted height */
             transition: all 0.3s ease !important;
             box-shadow: 0 8px 25px rgba(0,0,0,0.3) !important;
-            margin: 1rem auto !important; /* Center the buttons */
-            display: block !important; /* Ensure they take full width for margin auto to work */
-            line-height: 0.8 !important;
+            margin: 1rem auto !important; /* Ensure vertical spacing, horizontal centering via parent */
+            display: flex !important; /* Use flexbox for button content centering if needed */
+            justify-content: center !important; /* Center text horizontally */
+            align-items: center !important; /* Center text vertically */
+            line-height: 1 !important; /* Reset line-height to 1 for vertical centering */
             padding: 0 !important;
         }
         
@@ -499,10 +512,10 @@ def home_page():
         .button-container {
             display: flex;
             flex-direction: column;
-            align-items: center; /* Center items horizontally */
+            align-items: center; /* This centers the buttons horizontally within this container */
             gap: 1.5rem;
-            margin: 1rem auto; /* Center the container itself */
-            max-width: 700px;
+            margin: 1rem auto; /* This centers the container itself within center_col */
+            max-width: 400px; /* Constrain max-width of container for better centering effect */
         }
         
         .side-panel {
@@ -633,8 +646,6 @@ def home_page():
             border-top: 1px solid #ddd;
             padding-top: 1rem;
         }
-        /* The .main-page-button styles were for the old design, adjusting them to use the new div.stButton styles */
-        /* Removed .main-page-button specific styles as they are now handled by the general stButton override */
     </style>
     """, unsafe_allow_html=True)
 
@@ -744,15 +755,16 @@ def original_data_landing_page():
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown('<div class="button-container">', unsafe_allow_html=True)
-        if st.button("🔍 View Raw Data Tables", key="view_raw_data_tables", help="Browse the raw 'AnalysisFile2.txt' data.", use_container_width=True):
+        # Re-using the general button styling for consistency and centering
+        st.markdown('<div class="button-container" style="max-width: 300px;">', unsafe_allow_html=True) # Smaller max-width for these buttons
+        if st.button("🔍 View Raw Data Tables", key="view_raw_data_tables", help="Browse the raw 'AnalysisFile2.txt' data."):
             st.session_state.page = "raw_data"
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
-        st.markdown('<div class="button-container">', unsafe_allow_html=True)
-        if st.button("📈 View Visualizations", key="view_visualizations", help="See plots and graphs generated from the 'AnalysisFile2.txt' data.", use_container_width=True):
+        st.markdown('<div class="button-container" style="max-width: 300px;">', unsafe_allow_html=True) # Smaller max-width for these buttons
+        if st.button("📈 View Visualizations", key="view_visualizations", help="See plots and graphs generated from the 'AnalysisFile2.txt' data."):
             st.session_state.page = "visualizations"
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
@@ -993,8 +1005,8 @@ def visualizations_page():
                 title_font_size=20,
                 xaxis_title_font_size=14,
                 yaxis_title_font_size=14,
-                xaxis_type='log',
-                yaxis_type='log',
+                xaxis_type='log', # Set X-axis to logarithmic scale
+                yaxis_type='log', # Set Y-axis to logarithmic scale
                 xaxis_exponentformat='power',
                 xaxis_showexponent='all',
                 xaxis_tickformat='e',
@@ -1009,7 +1021,7 @@ def visualizations_page():
                 legend_title_text='Groupings'
             )
             st.plotly_chart(fig_comp)
-            st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">This plot compares the expression values of genes common to both "Early Embryo" and "{selected_comparison_dataset}" datasets. Points are shaped by their Early Embryo group and colored by their Single-Cell group. Standard deviation is not shown.</p>', unsafe_allow_html=True)
+            st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">This plot uses a <b>Log10 Scale</b> for both X and Y axes to better compare expression values across datasets.</p>', unsafe_allow_html=True)
             
             if removed_gene_name_comp:
                 st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_comp}</b> (Expression: {removed_expr_value_comp:.2f} in {removed_dataset_comp}) was removed to improve plot clarity as it was the single highest outlier across both datasets.</p>', unsafe_allow_html=True)
