@@ -14,7 +14,6 @@ st.set_page_config(
 )
 
 # --- Global Data Loading and Constants ---
-# Assuming AnalysisFile2.txt is also managed by the file manager or is in the default accessible path
 input_file_path = "AnalysisFile2.txt"
 
 # Updated: Nested dictionary for single-cell data files, categorized by Germ and Somatic
@@ -212,7 +211,6 @@ fem1_dot_size = 10
 def load_original_data(path):
     """Loads and preprocesses the original AnalysisFile2.txt data."""
     try:
-        # Reverted: Removed st.file_manager.get_uploaded_file_path(path)
         df_loaded = pd.read_csv(path, sep='\t')
         for col in ['Mean of Geneid Strains', 'Standard Deviation of Geneid Strains', 'Group']:
             df_loaded[col] = pd.to_numeric(df_loaded[col], errors='coerce')
@@ -220,7 +218,7 @@ def load_original_data(path):
         df_loaded['Group'] = df_loaded['Group'].astype(str)
         return df_loaded
     except FileNotFoundError:
-        st.error(f"Error: Original data file not found at {path}. Please ensure the file exists in your repository's root directory or the specified path.")
+        st.error(f"Error: Original data file not found at {path}. Please ensure the file exists in your repository.")
         st.stop()
     except Exception as e:
         st.error(f"Error loading original data: {e}")
@@ -231,16 +229,13 @@ def load_single_cell_dataframes_original_structure():
     """
     Loads single-cell data, organized by category (Germ/Somatic).
     Standardizes column names to 'gene name', 'Scaled_TPM', 'group number'.
-    Reverted: No longer uses st.file_manager.get_uploaded_file_path.
     """
     all_single_cell_dfs = {}
     for category, files_map in SINGLE_CELL_FILES_DISPLAY_MAP.items():
         category_dfs = {}
         for display_name, filename in files_map.items():
-            # Reverted: Removed st.file_manager.get_uploaded_file_path(filename)
-            # Assuming files are in the same directory or accessible via relative path
-            file_path = filename
-
+            file_path = filename # Assumed in root
+            
             try:
                 df_sc = pd.read_csv(file_path, sep='\t')
                 # Standardize column names to match existing plotting functions
@@ -284,7 +279,7 @@ def get_sorted_groups(df, group_col):
                 numeric_groups.append(int(x))
             else:
                 non_numeric_groups.append(x)
-
+        
         sorted_numeric = [str(g) for g in sorted(numeric_groups)]
         sorted_non_numeric = sorted(non_numeric_groups)
         return sorted_numeric + sorted_non_numeric
@@ -299,10 +294,10 @@ def create_aggregated_hover_data_flexible(df_to_process, gene_col, mean_col, std
         return pd.DataFrame(columns=[mean_col, std_dev_col, group_col, 'Aggregated Hover Text'])
 
     df_temp = df_to_process.copy()
-
+    
     df_temp[f'{mean_col}_numeric_rounded'] = pd.to_numeric(df_temp[mean_col], errors='coerce').round(round_decimals)
     df_temp[f'{std_dev_col}_numeric_rounded'] = pd.to_numeric(df_temp[std_dev_col], errors='coerce').round(round_decimals)
-
+    
     df_temp.dropna(subset=[f'{mean_col}_numeric_rounded', f'{std_dev_col}_numeric_rounded'], inplace=True)
 
     grouped = df_temp.groupby([f'{mean_col}_numeric_rounded', f'{std_dev_col}_numeric_rounded', group_col]).apply(
@@ -316,7 +311,7 @@ def create_aggregated_hover_data_flexible(df_to_process, gene_col, mean_col, std
         f'{mean_col}_numeric_rounded': mean_col,
         f'{std_dev_col}_numeric_rounded': std_dev_col
     }, inplace=True)
-
+    
     return grouped
 
 def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_col, mean_col, std_dev_col, group_col, group_color_map):
@@ -376,7 +371,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
                 text=[fem1_hover_text],
                 hovertemplate='%{text}<extra></extra>'
             ))
-
+            
     fig1.update_layout(
         title=f'{plot_title_prefix} Genes: {mean_col} vs {std_dev_col}',
         xaxis_title=mean_col,
@@ -509,6 +504,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
                 hovertemplate='%{text}<extra></extra>'
             ))
 
+    # Corrected line: Filter fem-1 directly from the selected_groups_data_for_plot3
     fem1_in_selected_groups = selected_groups_data_for_plot3[selected_groups_data_for_plot3[gene_col] == 'fem-1']
     if not fem1_in_selected_groups.empty:
         fem1_hover_text_plot3 = (
@@ -541,8 +537,8 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         xaxis_exponentformat='power',
         yaxis_showexponent='all',
         yaxis_tickformat='e',
-        xaxis_tickangle=90,          # Rotate x-axis labels
-        yaxis_tickangle=0,           # Keep y-axis labels horizontal
+        xaxis_tickangle=90,        # Rotate x-axis labels
+        yaxis_tickangle=0,         # Keep y-axis labels horizontal
         width=900,
         height=600,
         legend_title_text='Group'
@@ -553,12 +549,12 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
 
 
 def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_prefix, gene_col, tpm_col, group_col, group_color_map):
-
+    
     st.subheader(f"{plot_title_prefix}: All Genes (Sorted by {tpm_col})")
     st.write(f"This line graph shows {tpm_col} for all genes, sorted by expression, with points color-coded by their assigned group. Zoom in to see individual gene points.")
-
+    
     df_sorted_by_tpm = df_data_sc.sort_values(by=tpm_col, ascending=True).reset_index(drop=True)
-
+    
     removed_gene_name_plot_sc = None
     removed_gene_tpm_value_plot_sc = None
 
@@ -606,7 +602,7 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
             text=[fem1_hover_text_sc],
             hovertemplate='%{text}<extra></extra>'
         ))
-
+    
     fig_sc.update_layout(
         title=f'{plot_title_prefix} Genes: {tpm_col} Distribution',
         xaxis_title=tpm_col,
@@ -851,7 +847,7 @@ def home_page():
             <p>To determine the molecular mechanism by which maternal RNA regulates fem-1 expression in C. elegans, with emphasis on how this regulation is influenced by parent-of-origin effects.</p>
         </div>
         """, unsafe_allow_html=True)
-
+        
         st.markdown("""
         <div class="helpful-links">
             <h3>🔗 Helpful Links</h3>
@@ -860,7 +856,7 @@ def home_page():
             <a href="https://www.wormbase.org/" target="_blank">WormBase Database</a>
         </div>
         """, unsafe_allow_html=True)
-
+        
         st.markdown("""
         <div class="floating-emoji">🧪</div>
         <div class="floating-emoji">⚗️</div>
@@ -878,17 +874,17 @@ def home_page():
         """, unsafe_allow_html=True)
 
         st.markdown('<div class="button-container">', unsafe_allow_html=True)
-
+        
         # Original Data Button
         if st.button("📊 Original Data", key="original_data_btn", help="Access raw data tables and visualizations from the initial dataset."):
             st.session_state.page = "original_data_landing"
             st.rerun()
-
+            
         # Processed Data Button (This button now leads to processed data landing, but actual "Processed Data" page is still pending full implementation beyond single-cell. User asked for this, so keeping it.)
         if st.button("✨ Processed Data", key="processed_data_btn", help="Explore processed single-cell data."):
             st.session_state.page = "processed_data_landing"
             st.rerun()
-
+            
         st.markdown('</div>', unsafe_allow_html=True)
 
         # Footer section with contact info and quote - MOVED HERE
@@ -916,7 +912,7 @@ def home_page():
             </ol>
         </div>
         """, unsafe_allow_html=True)
-
+        
         st.markdown("""
         <div class="floating-emoji">🧬</div>
         <div class="floating-emoji">📊</div>
@@ -981,7 +977,7 @@ def processed_data_landing_page():
     # You can add more buttons or content here as you develop the processed data features
     # Example:
     # if st.button("Explore Single-Cell Data (Coming Soon!)"):
-    #         st.write("Stay tuned for interactive single-cell analysis tools!")
+    #        st.write("Stay tuned for interactive single-cell analysis tools!")
 
 
 # --- Main Visualization Page ---
@@ -992,7 +988,7 @@ def visualizations_page():
     if st.button("🏠 Back to Home", key="viz_back_home"):
         st.session_state.page = "home"
         st.rerun()
-
+    
     st.markdown("---")
 
     visualization_type = st.radio(
@@ -1006,7 +1002,7 @@ def visualizations_page():
     if visualization_type == "Early Embryo Data":
         st.subheader("Early Embryo Data Visualizations")
         st.write("These plots display gene expression patterns from the original 'AnalysisFile2.txt' dataset.")
-
+        
         plot_gene_expression_set(
             df_original, 
             fem1_data_original, 
@@ -1078,7 +1074,7 @@ def comparison_page():
     if st.button("🏠 Back to Home", key="comp_back_home"):
         st.session_state.page = "home"
         st.rerun()
-
+    
     st.markdown("---")
 
     if not single_cell_dataframes:
@@ -1126,7 +1122,7 @@ def comparison_page():
         on='gene_common',
         how='inner'
     )
-
+    
     merged_df_sorted = merged_df.sort_values(by='gene_common').reset_index(drop=True)
 
     if merged_df_sorted.empty:
@@ -1154,7 +1150,7 @@ def comparison_page():
             removed_gene_name_comp = outlier_row['gene_common']
             removed_expr_value_comp = outlier_row['Scaled_TPM']
             removed_dataset_comp = selected_comparison_dataset_name
-
+            
     if removed_gene_name_comp:
         merged_df_sorted = merged_df_sorted[merged_df_sorted['gene_common'] != removed_gene_name_comp].copy()
 
@@ -1190,10 +1186,11 @@ def comparison_page():
                 text=[
                     f"<b>{row['gene_common']}</b><br>EE Expr: {row['Mean of Geneid Strains']:.2f} (Group: {row['Group']})"
                     f"<br>SC Expr: {row['Scaled_TPM']:.2f} (Group: {row['group number']})"
+                    f"<br>HIGHLIGHTED"
                 ],
                 hovertemplate='%{text}<extra></extra>'
             ))
-
+    
     # Add vertical lines for Early Embryo group max expression
     shapes = []
     # Ensure early_embryo_groups_sorted is defined or derived here if not global
@@ -1275,7 +1272,7 @@ def comparison_page():
     )
     st.plotly_chart(fig_comp)
     st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">This plot compares the expression values of genes common to both "Early Embryo" and "{selected_comparison_dataset_name}" datasets. Points are colored by their Single-Cell group. Vertical dashed lines indicate the maximum "Mean of Geneid Strains" for each Early Embryo group. Standard deviation is not shown.</p>', unsafe_allow_html=True)
-
+    
     if removed_gene_name_comp:
         st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_comp}</b> (Expression: {removed_expr_value_comp:.2f} in {removed_dataset_comp}) was removed to improve plot clarity as it was the single highest outlier across both datasets.</p>', unsafe_allow_html=True)
 
@@ -1293,14 +1290,14 @@ def comparison_page():
 def raw_data_page():
     st.header("Raw Data - Gene Search Tool")
     st.write("This page allows you to view and search different gene expression datasets.")
-
+    
     col_home, col_search_btn_placeholder = st.columns([0.15, 0.85])
 
     with col_home:
         if st.button("🏠 Back to Home", key="raw_data_back_btn"):
             st.session_state.page = "home"
             st.rerun()
-
+            
     st.markdown("---")
 
     data_source_option = st.radio(
@@ -1360,10 +1357,10 @@ def raw_data_page():
         with col_search_btn_placeholder:
             if 'show_search_interface' not in st.session_state:
                 st.session_state.show_search_interface = False
-
+            
             if st.button("🔍 Toggle Search Interface", key="toggle_search_btn"):
                 st.session_state.show_search_interface = not st.session_state.show_search_interface
-
+        
         if st.session_state.show_search_interface:
             st.subheader("Perform a Search")
             search_type = st.radio(
@@ -1408,7 +1405,7 @@ def raw_data_page():
                                     end_idx = min(len(df_sorted_by_diff), 21)
                                 elif end_idx == len(df_sorted_by_diff):
                                     start_idx = max(0, len(df_sorted_by_diff) - 21)
-
+                            
                             closest_genes = df_sorted_by_diff.iloc[start_idx:end_idx].sort_values(by=f'{mean_col_name}_numeric')
                             closest_genes = closest_genes.drop(columns=['abs_diff_from_query_mean', f'{mean_col_name}_numeric'])
 
