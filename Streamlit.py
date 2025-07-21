@@ -505,6 +505,9 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
             ))
 
     # Corrected line: Filter fem-1 directly from the selected_groups_data_for_plot3
+    # The previous error was due to using 'fem1_data_original' which is a global dataframe,
+    # but the filtering should be applied to 'selected_groups_data_for_plot3' to ensure
+    # 'fem-1' is within the selected groups for this specific plot.
     fem1_in_selected_groups = selected_groups_data_for_plot3[selected_groups_data_for_plot3[gene_col] == 'fem-1']
     if not fem1_in_selected_groups.empty:
         fem1_hover_text_plot3 = (
