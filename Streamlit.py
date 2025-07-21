@@ -14,6 +14,7 @@ st.set_page_config(
 )
 
 # --- Global Data Loading and Constants ---
+# Assuming AnalysisFile2.txt is also managed by the file manager or is in the default accessible path
 input_file_path = "AnalysisFile2.txt"
 
 # Updated: Nested dictionary for single-cell data files, categorized by Germ and Somatic
@@ -211,7 +212,13 @@ fem1_dot_size = 10
 def load_original_data(path):
     """Loads and preprocesses the original AnalysisFile2.txt data."""
     try:
-        df_loaded = pd.read_csv(path, sep='\t')
+        # Reverted: Use st.file_manager to get the path for uploaded files
+        actual_path = st.file_manager.get_uploaded_file_path(path)
+        if actual_path is None:
+            st.error(f"Error: Original data file '{path}' not found or accessible. Please ensure it's uploaded.")
+            st.stop()
+
+        df_loaded = pd.read_csv(actual_path, sep='\t')
         for col in ['Mean of Geneid Strains', 'Standard Deviation of Geneid Strains', 'Group']:
             df_loaded[col] = pd.to_numeric(df_loaded[col], errors='coerce')
         df_loaded.dropna(subset=['Mean of Geneid Strains', 'Standard Deviation of Geneid Strains', 'Group'], inplace=True)
@@ -229,13 +236,19 @@ def load_single_cell_dataframes_original_structure():
     """
     Loads single-cell data, organized by category (Germ/Somatic).
     Standardizes column names to 'gene name', 'Scaled_TPM', 'group number'.
+    Uses st.file_manager to get the actual path of uploaded files.
     """
     all_single_cell_dfs = {}
     for category, files_map in SINGLE_CELL_FILES_DISPLAY_MAP.items():
         category_dfs = {}
         for display_name, filename in files_map.items():
-            file_path = filename 
+            # Reverted: Use st.file_manager to get the actual path of the uploaded file
+            file_path = st.file_manager.get_uploaded_file_path(filename)
             
+            if file_path is None:
+                st.warning(f"Single-cell file not found: '{filename}' in category '{category}'. It will not be available in the dropdown. Please ensure the file is uploaded and accessible.")
+                continue # Skip to the next file if this one isn't found
+
             try:
                 df_sc = pd.read_csv(file_path, sep='\t')
                 # Standardize column names to match existing plotting functions
@@ -279,7 +292,7 @@ def get_sorted_groups(df, group_col):
                 numeric_groups.append(int(x))
             else:
                 non_numeric_groups.append(x)
-        
+
         sorted_numeric = [str(g) for g in sorted(numeric_groups)]
         sorted_non_numeric = sorted(non_numeric_groups)
         return sorted_numeric + sorted_non_numeric
@@ -294,10 +307,10 @@ def create_aggregated_hover_data_flexible(df_to_process, gene_col, mean_col, std
         return pd.DataFrame(columns=[mean_col, std_dev_col, group_col, 'Aggregated Hover Text'])
 
     df_temp = df_to_process.copy()
-    
+
     df_temp[f'{mean_col}_numeric_rounded'] = pd.to_numeric(df_temp[mean_col], errors='coerce').round(round_decimals)
     df_temp[f'{std_dev_col}_numeric_rounded'] = pd.to_numeric(df_temp[std_dev_col], errors='coerce').round(round_decimals)
-    
+
     df_temp.dropna(subset=[f'{mean_col}_numeric_rounded', f'{std_dev_col}_numeric_rounded'], inplace=True)
 
     grouped = df_temp.groupby([f'{mean_col}_numeric_rounded', f'{std_dev_col}_numeric_rounded', group_col]).apply(
@@ -311,7 +324,7 @@ def create_aggregated_hover_data_flexible(df_to_process, gene_col, mean_col, std
         f'{mean_col}_numeric_rounded': mean_col,
         f'{std_dev_col}_numeric_rounded': std_dev_col
     }, inplace=True)
-    
+
     return grouped
 
 def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_col, mean_col, std_dev_col, group_col, group_color_map):
@@ -371,7 +384,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
                 text=[fem1_hover_text],
                 hovertemplate='%{text}<extra></extra>'
             ))
-            
+
     fig1.update_layout(
         title=f'{plot_title_prefix} Genes: {mean_col} vs {std_dev_col}',
         xaxis_title=mean_col,
@@ -504,6 +517,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
                 hovertemplate='%{text}<extra></extra>'
             ))
 
+    # Reverted: Corrected the line for filtering fem1_in_selected_groups
     fem1_in_selected_groups = selected_groups_data_for_plot3[selected_groups_data_for_plot3[gene_col] == 'fem-1']
     if not fem1_in_selected_groups.empty:
         fem1_hover_text_plot3 = (
@@ -536,8 +550,8 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
         xaxis_exponentformat='power',
         yaxis_showexponent='all',
         yaxis_tickformat='e',
-        xaxis_tickangle=90,        # Rotate x-axis labels
-        yaxis_tickangle=0,         # Keep y-axis labels horizontal
+        xaxis_tickangle=90,          # Rotate x-axis labels
+        yaxis_tickangle=0,           # Keep y-axis labels horizontal
         width=900,
         height=600,
         legend_title_text='Group'
@@ -548,12 +562,12 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
 
 
 def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_prefix, gene_col, tpm_col, group_col, group_color_map):
-    
+
     st.subheader(f"{plot_title_prefix}: All Genes (Sorted by {tpm_col})")
     st.write(f"This line graph shows {tpm_col} for all genes, sorted by expression, with points color-coded by their assigned group. Zoom in to see individual gene points.")
-    
+
     df_sorted_by_tpm = df_data_sc.sort_values(by=tpm_col, ascending=True).reset_index(drop=True)
-    
+
     removed_gene_name_plot_sc = None
     removed_gene_tpm_value_plot_sc = None
 
@@ -601,7 +615,7 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
             text=[fem1_hover_text_sc],
             hovertemplate='%{text}<extra></extra>'
         ))
-    
+
     fig_sc.update_layout(
         title=f'{plot_title_prefix} Genes: {tpm_col} Distribution',
         xaxis_title=tpm_col,
@@ -710,96 +724,96 @@ def home_page():
             border-radius: 15px;
             color: white;
             text-align: center;
-            box_shadow: 0 5px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
             margin: 1rem 0;
-            height: fit_content;
+            height: fit-content;
         }
         
         .side-panel h3 {
-            margin_bottom: 1rem;
-            font_size: 1.5rem;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
         }
         
         .side-panel p {
-            font_size: 1rem;
+            font-size: 1rem;
             opacity: 0.9;
-            line_height: 1.4;
+            line-height: 1.4;
         }
         
-        .helpful_links {
-            background: linear_gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        .helpful-links {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
             padding: 1.5rem;
-            border_radius: 15px;
+            border-radius: 15px;
             color: #333;
-            text_align: center;
-            box_shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             margin: 1rem 0;
         }
         
-        .helpful_links h3 {
+        .helpful-links h3 {
             color: #667eea;
-            margin_bottom: 1rem;
-            font_size: 1.3rem;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
         }
         
-        .helpful_links a {
+        .helpful-links a {
             display: block;
             color: #667eea;
-            text_decoration: none;
+            text-decoration: none;
             margin: 0.5rem 0;
-            font_weight: bold;
+            font-weight: bold;
         }
         
-        .helpful_links a:hover {
-            text_decoration: underline;
+        .helpful-links a:hover {
+            text-decoration: underline;
         }
         
-        .research_objectives {
-            background: linear_gradient(135deg, #667eea 0%, #764ba2 100%);
+        .research-objectives {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 2rem;
-            border_radius: 15px;
+            border-radius: 15px;
             color: white;
-            box_shadow: 0 5px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
             margin: 1rem 0;
             height: 520px; /* Adjusted to try and fit content better */
             display: flex;
-            flex_direction: column;
+            flex-direction: column;
         }
         
-        .research_objectives h3 {
-            margin_bottom: 1.5rem;
-            font_size: 1.5rem;
-            text_align: center;
+        .research-objectives h3 {
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+            text-align: center;
         }
         
-        .research_objectives ol {
-            text_align: left;
-            padding_left: 1rem;
-            flex_grow: 1;
+        .research-objectives ol {
+            text-align: left;
+            padding-left: 1rem;
+            flex-grow: 1;
             display: flex;
-            flex_direction: column;
-            justify_content: space_around;
+            flex-direction: column;
+            justify-content: space-around;
         }
         
-        .research_objectives li {
-            margin_bottom: 1.5rem;
-            line_height: 1.4;
-            font_size: 0.95rem;
+        .research-objectives li {
+            margin-bottom: 1.5rem;
+            line-height: 1.4;
+            font-size: 0.95rem;
         }
         
-        .floating_emoji {
-            font_size: 3rem;
-            animation: float 3s ease_in_out infinite;
-            display: inline_block;
+        .floating-emoji {
+            font-size: 3rem;
+            animation: float 3s ease-in-out infinite;
+            display: inline-block;
             margin: 0.5rem;
         }
         
-        .floating_emoji:nth_child(2) {
-            animation_delay: 0.5s;
+        .floating-emoji:nth-child(2) {
+            animation-delay: 0.5s;
         }
         
-        .floating_emoji:nth_child(3) {
-            animation_delay: 1s;
+        .floating-emoji:nth-child(3) {
+            animation-delay: 1s;
         }
         
         @keyframes float {
@@ -807,30 +821,30 @@ def home_page():
             50% { transform: translateY(-10px); }
         }
         
-        .footer_section {
-            background_color: #f8f9fa; /* Lighter background for white page */
-            border_radius: 10px;
+        .footer-section {
+            background-color: #f8f9fa; /* Lighter background for white page */
+            border-radius: 10px;
             padding: 1.5rem;
-            margin_top: 1rem; /* Adjusted margin_top to bring it closer to buttons */
-            text_align: center;
-            max_width: 800px;
-            margin_left: auto;
-            margin_right: auto;
-            box_shadow: 0 5px 15px rgba(0,0,0,0.1); /* Added subtle shadow */
+            margin-top: 1rem; /* Adjusted margin-top to bring it closer to buttons */
+            text-align: center;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1); /* Added subtle shadow */
         }
         
-        .contact_info {
-            font_size: 0.9rem;
+        .contact-info {
+            font-size: 0.9rem;
             color: #666;
-            margin_bottom: 1rem;
+            margin-bottom: 1rem;
         }
         
-        .quote_section {
-            font_style: italic;
+        .quote-section {
+            font-style: italic;
             color: #555;
-            font_size: 1rem;
-            border_top: 1px solid #ddd;
-            padding_top: 1rem;
+            font-size: 1rem;
+            border-top: 1px solid #ddd;
+            padding-top: 1rem;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -846,53 +860,53 @@ def home_page():
             <p>To determine the molecular mechanism by which maternal RNA regulates fem-1 expression in C. elegans, with emphasis on how this regulation is influenced by parent-of-origin effects.</p>
         </div>
         """, unsafe_allow_html=True)
-        
+
         st.markdown("""
-        <div class="helpful_links">
+        <div class="helpful-links">
             <h3>🔗 Helpful Links</h3>
             <a href="https://docs.google.com/document/d/1kNxQVg3Y1rGJ9-6C6icEoDH44qDx5zQPyCPlS7HfsiY/edit?usp=sharing" target="_blank">Methods Document</a>
             <a href="https://37nyza-abbas-ghaddar.shinyapps.io/shiny_webpage/" target="_blank">Single Cell Database</a>
             <a href="https://www.wormbase.org/" target="_blank">WormBase Database</a>
         </div>
         """, unsafe_allow_html=True)
-        
+
         st.markdown("""
-        <div class="floating_emoji">🧪</div>
-        <div class="floating_emoji">⚗️</div>
-        <div class="floating_emoji">🔬</div>
+        <div class="floating-emoji">🧪</div>
+        <div class="floating-emoji">⚗️</div>
+        <div class="floating-emoji">🔬</div>
         """, unsafe_allow_html=True)
 
     # Center content
     with center_col:
         # Hero Section - smaller and pushed up
         st.markdown("""
-        <div class="hero_section">
-            <div class="hero_title">🧬 Saurish and Xander's<br>Biomart 🔬</div>
-            <div class="hero_slogan">Science for the benefit of humanity</div>
+        <div class="hero-section">
+            <div class="hero-title">🧬 Saurish and Xander's<br>Biomart 🔬</div>
+            <div class="hero-slogan">Science for the benefit of humanity</div>
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown('<div class="button_container">', unsafe_allow_html=True)
-        
+        st.markdown('<div class="button-container">', unsafe_allow_html=True)
+
         # Original Data Button
         if st.button("📊 Original Data", key="original_data_btn", help="Access raw data tables and visualizations from the initial dataset."):
             st.session_state.page = "original_data_landing"
             st.rerun()
-            
+
         # Processed Data Button (This button now leads to processed data landing, but actual "Processed Data" page is still pending full implementation beyond single-cell. User asked for this, so keeping it.)
         if st.button("✨ Processed Data", key="processed_data_btn", help="Explore processed single-cell data."):
             st.session_state.page = "processed_data_landing"
             st.rerun()
-            
+
         st.markdown('</div>', unsafe_allow_html=True)
 
         # Footer section with contact info and quote - MOVED HERE
         st.markdown("""
-        <div class="footer_section">
-            <div class="contact_info">
-                If you have any questions, email <a href="mailto:sarora@rockefeller.edu" style="color: #667eea; text_decoration: none; font_weight: bold;">sarora@rockefeller.edu</a> or text at <a href="tel:+19089302303" style="color: #667eea; text_decoration: none; font_weight: bold;">(908) 930-2303</a>
+        <div class="footer-section">
+            <div class="contact-info">
+                If you have any questions, email <a href="mailto:sarora@rockefeller.edu" style="color: #667eea; text-decoration: none; font-weight: bold;">sarora@rockefeller.edu</a> or text at <a href="tel:+19089302303" style="color: #667eea; text-decoration: none; font-weight: bold;">(908) 930-2303</a>
             </div>
-            <div class="quote_section">
+            <div class="quote-section">
                 "The good thing about science is that it's true whether or not you believe in it."<br>
                 <small>- Neil deGrasse Tyson</small>
             </div>
@@ -902,7 +916,7 @@ def home_page():
     # Right sidebar content
     with right_col:
         st.markdown("""
-        <div class="research_objectives">
+        <div class="research-objectives">
             <h3>🎯 Research Objectives</h3>
             <ol>
                 <li>To recapitulate and characterize fem-1–related phenotypes through targeted genetic crosses to confirm parent-of-origin effects.</li>
@@ -911,17 +925,17 @@ def home_page():
             </ol>
         </div>
         """, unsafe_allow_html=True)
-        
+
         st.markdown("""
-        <div class="floating_emoji">🧬</div>
-        <div class="floating_emoji">📊</div>
-        <div class="floating_emoji">🔍</div>
+        <div class="floating-emoji">🧬</div>
+        <div class="floating-emoji">📊</div>
+        <div class="floating-emoji">🔍</div>
         """, unsafe_allow_html=True)
 
     # Add some decorative elements
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("""
-    <div style="text_align: center; opacity: 0.6;">
+    <div style="text-align: center; opacity: 0.6;">
         🧪 ⚗️ 🔬 🧬 📊 📈 🔍 ⚡ 🧫 🔭 ⚛️ 🌡️
     </div>
     """, unsafe_allow_html=True)
@@ -941,21 +955,21 @@ def original_data_landing_page():
     col1, col2, col3 = st.columns(3) # Added a third column for the new button
 
     with col1:
-        st.markdown('<div class="button_container" style="max_width: 250px;">', unsafe_allow_html=True) # Smaller max_width for these buttons
+        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True) # Smaller max-width for these buttons
         if st.button("🔍 Raw Data", key="view_raw_data_tables", help="Browse the raw 'AnalysisFile2.txt' data."):
             st.session_state.page = "raw_data"
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
-        st.markdown('<div class="button_container" style="max_width: 250px;">', unsafe_allow_html=True) # Smaller max_width for these buttons
+        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True) # Smaller max-width for these buttons
         if st.button("📈 Visualizations", key="view_visualizations", help="See plots and graphs generated from the 'AnalysisFile2.txt' data."):
             st.session_state.page = "visualizations"
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col3: # New column for Comparisons button
-        st.markdown('<div class="button_container" style="max_width: 250px;">', unsafe_allow_html=True)
+        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
         if st.button("🔄 Comparisons", key="view_comparisons", help="Compare gene expression across different datasets."):
             st.session_state.page = "comparison_graphs"
             st.rerun()
@@ -976,7 +990,7 @@ def processed_data_landing_page():
     # You can add more buttons or content here as you develop the processed data features
     # Example:
     # if st.button("Explore Single-Cell Data (Coming Soon!)"):
-    #        st.write("Stay tuned for interactive single-cell analysis tools!")
+    #         st.write("Stay tuned for interactive single-cell analysis tools!")
 
 
 # --- Main Visualization Page ---
@@ -987,7 +1001,7 @@ def visualizations_page():
     if st.button("🏠 Back to Home", key="viz_back_home"):
         st.session_state.page = "home"
         st.rerun()
-    
+
     st.markdown("---")
 
     visualization_type = st.radio(
@@ -1001,7 +1015,7 @@ def visualizations_page():
     if visualization_type == "Early Embryo Data":
         st.subheader("Early Embryo Data Visualizations")
         st.write("These plots display gene expression patterns from the original 'AnalysisFile2.txt' dataset.")
-        
+
         plot_gene_expression_set(
             df_original, 
             fem1_data_original, 
@@ -1073,7 +1087,7 @@ def comparison_page():
     if st.button("🏠 Back to Home", key="comp_back_home"):
         st.session_state.page = "home"
         st.rerun()
-    
+
     st.markdown("---")
 
     if not single_cell_dataframes:
@@ -1121,7 +1135,7 @@ def comparison_page():
         on='gene_common',
         how='inner'
     )
-    
+
     merged_df_sorted = merged_df.sort_values(by='gene_common').reset_index(drop=True)
 
     if merged_df_sorted.empty:
@@ -1149,7 +1163,7 @@ def comparison_page():
             removed_gene_name_comp = outlier_row['gene_common']
             removed_expr_value_comp = outlier_row['Scaled_TPM']
             removed_dataset_comp = selected_comparison_dataset_name
-            
+
     if removed_gene_name_comp:
         merged_df_sorted = merged_df_sorted[merged_df_sorted['gene_common'] != removed_gene_name_comp].copy()
 
@@ -1185,11 +1199,10 @@ def comparison_page():
                 text=[
                     f"<b>{row['gene_common']}</b><br>EE Expr: {row['Mean of Geneid Strains']:.2f} (Group: {row['Group']})"
                     f"<br>SC Expr: {row['Scaled_TPM']:.2f} (Group: {row['group number']})"
-                    f"<br>HIGHLIGHTED"
                 ],
                 hovertemplate='%{text}<extra></extra>'
             ))
-    
+
     # Add vertical lines for Early Embryo group max expression
     shapes = []
     # Ensure early_embryo_groups_sorted is defined or derived here if not global
@@ -1271,7 +1284,7 @@ def comparison_page():
     )
     st.plotly_chart(fig_comp)
     st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">This plot compares the expression values of genes common to both "Early Embryo" and "{selected_comparison_dataset_name}" datasets. Points are colored by their Single-Cell group. Vertical dashed lines indicate the maximum "Mean of Geneid Strains" for each Early Embryo group. Standard deviation is not shown.</p>', unsafe_allow_html=True)
-    
+
     if removed_gene_name_comp:
         st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_comp}</b> (Expression: {removed_expr_value_comp:.2f} in {removed_dataset_comp}) was removed to improve plot clarity as it was the single highest outlier across both datasets.</p>', unsafe_allow_html=True)
 
@@ -1289,14 +1302,14 @@ def comparison_page():
 def raw_data_page():
     st.header("Raw Data - Gene Search Tool")
     st.write("This page allows you to view and search different gene expression datasets.")
-    
+
     col_home, col_search_btn_placeholder = st.columns([0.15, 0.85])
 
     with col_home:
         if st.button("🏠 Back to Home", key="raw_data_back_btn"):
             st.session_state.page = "home"
             st.rerun()
-            
+
     st.markdown("---")
 
     data_source_option = st.radio(
@@ -1356,10 +1369,10 @@ def raw_data_page():
         with col_search_btn_placeholder:
             if 'show_search_interface' not in st.session_state:
                 st.session_state.show_search_interface = False
-            
+
             if st.button("🔍 Toggle Search Interface", key="toggle_search_btn"):
                 st.session_state.show_search_interface = not st.session_state.show_search_interface
-        
+
         if st.session_state.show_search_interface:
             st.subheader("Perform a Search")
             search_type = st.radio(
@@ -1404,7 +1417,7 @@ def raw_data_page():
                                     end_idx = min(len(df_sorted_by_diff), 21)
                                 elif end_idx == len(df_sorted_by_diff):
                                     start_idx = max(0, len(df_sorted_by_diff) - 21)
-                            
+
                             closest_genes = df_sorted_by_diff.iloc[start_idx:end_idx].sort_values(by=f'{mean_col_name}_numeric')
                             closest_genes = closest_genes.drop(columns=['abs_diff_from_query_mean', f'{mean_col_name}_numeric'])
 
