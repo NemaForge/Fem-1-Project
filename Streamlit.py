@@ -212,13 +212,8 @@ fem1_dot_size = 10
 def load_original_data(path):
     """Loads and preprocesses the original AnalysisFile2.txt data."""
     try:
-        # Reverted: Use st.file_manager to get the path for uploaded files
-        actual_path = st.file_manager.get_uploaded_file_path(path)
-        if actual_path is None:
-            st.error(f"Error: Original data file '{path}' not found or accessible. Please ensure it's uploaded.")
-            st.stop()
-
-        df_loaded = pd.read_csv(actual_path, sep='\t')
+        # Reverted: Removed st.file_manager.get_uploaded_file_path(path)
+        df_loaded = pd.read_csv(path, sep='\t')
         for col in ['Mean of Geneid Strains', 'Standard Deviation of Geneid Strains', 'Group']:
             df_loaded[col] = pd.to_numeric(df_loaded[col], errors='coerce')
         df_loaded.dropna(subset=['Mean of Geneid Strains', 'Standard Deviation of Geneid Strains', 'Group'], inplace=True)
@@ -236,18 +231,15 @@ def load_single_cell_dataframes_original_structure():
     """
     Loads single-cell data, organized by category (Germ/Somatic).
     Standardizes column names to 'gene name', 'Scaled_TPM', 'group number'.
-    Uses st.file_manager to get the actual path of uploaded files.
+    Reverted: No longer uses st.file_manager.get_uploaded_file_path.
     """
     all_single_cell_dfs = {}
     for category, files_map in SINGLE_CELL_FILES_DISPLAY_MAP.items():
         category_dfs = {}
         for display_name, filename in files_map.items():
-            # Reverted: Use st.file_manager to get the actual path of the uploaded file
-            file_path = st.file_manager.get_uploaded_file_path(filename)
-            
-            if file_path is None:
-                st.warning(f"Single-cell file not found: '{filename}' in category '{category}'. It will not be available in the dropdown. Please ensure the file is uploaded and accessible.")
-                continue # Skip to the next file if this one isn't found
+            # Reverted: Removed st.file_manager.get_uploaded_file_path(filename)
+            # Assuming files are in the same directory or accessible via relative path
+            file_path = filename
 
             try:
                 df_sc = pd.read_csv(file_path, sep='\t')
@@ -517,7 +509,6 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
                 hovertemplate='%{text}<extra></extra>'
             ))
 
-    # Reverted: Corrected the line for filtering fem1_in_selected_groups
     fem1_in_selected_groups = selected_groups_data_for_plot3[selected_groups_data_for_plot3[gene_col] == 'fem-1']
     if not fem1_in_selected_groups.empty:
         fem1_hover_text_plot3 = (
