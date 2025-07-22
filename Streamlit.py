@@ -926,9 +926,9 @@ def home_page():
         """, unsafe_allow_html=True)
         
         st.markdown("""
-        <div class="floating-emoji">🧬</div>
-        <div class="floating-emoji">📊</div>
-        <div class="floating-emoji">🔍</div>
+        <div class="floating-emoji">🧪</div>
+        <div class="floating-emoji">⚗️</div>
+        <div class="floating-emoji">🔬</div>
         """, unsafe_allow_html=True)
 
     # Add some decorative elements
@@ -1367,17 +1367,20 @@ def gene_group_comparisons_page():
         # Collect data for selected single-cell datasets
         for dataset_name in selected_datasets_for_table:
             if dataset_name in all_sc_datasets_flat:
-                sc_df = single_cell_dataframes.get(
-                    "Germ Cells", {}).get(dataset_name) or \
-                    single_cell_dataframes.get("Somatic Cells", {}).get(dataset_name)
+                # Retrieve sc_df safely
+                sc_df = None
+                if dataset_name in single_cell_dataframes.get("Germ Cells", {}):
+                    sc_df = single_cell_dataframes["Germ Cells"][dataset_name]
+                elif dataset_name in single_cell_dataframes.get("Somatic Cells", {}):
+                    sc_df = single_cell_dataframes["Somatic Cells"][dataset_name]
 
-                if sc_df is not None:
+                if sc_df is not None and not sc_df.empty: # FIX: Check if DataFrame is not empty
                     # Ensure column names are consistent for merging
                     temp_sc_df = sc_df[['gene name', 'group number']].copy()
                     temp_sc_df.rename(columns={'gene name': 'Gene Name', 'group number': f'{dataset_name} Group'}, inplace=True)
                     dfs_to_merge.append(temp_sc_df)
                 else:
-                    st.warning(f"Data for '{dataset_name}' could not be loaded for table comparison.")
+                    st.warning(f"Data for '{dataset_name}' could not be loaded or is empty for table comparison.")
         
         # Perform outer merge to keep all genes from all selected datasets
         final_comparison_df = dfs_to_merge[0]
@@ -1420,12 +1423,15 @@ def gene_group_comparisons_page():
     )
 
     if selected_dataset_for_fem1_focus:
-        sc_df_fem1_focus = single_cell_dataframes.get(
-            "Germ Cells", {}).get(selected_dataset_for_fem1_focus) or \
-            single_cell_dataframes.get("Somatic Cells", {}).get(selected_dataset_for_fem1_focus)
-        
-        if sc_df_fem1_focus is None:
-            st.warning(f"Data for '{selected_dataset_for_fem1_focus}' could not be loaded for fem-1 comparison.")
+        # Retrieve sc_df_fem1_focus safely
+        sc_df_fem1_focus = None
+        if selected_dataset_for_fem1_focus in single_cell_dataframes.get("Germ Cells", {}):
+            sc_df_fem1_focus = single_cell_dataframes["Germ Cells"][selected_dataset_for_fem1_focus]
+        elif selected_dataset_for_fem1_focus in single_cell_dataframes.get("Somatic Cells", {}):
+            sc_df_fem1_focus = single_cell_dataframes["Somatic Cells"][selected_dataset_for_fem1_focus]
+
+        if sc_df_fem1_focus is None or sc_df_fem1_focus.empty:
+            st.warning(f"Data for '{selected_dataset_for_fem1_focus}' could not be loaded or is empty for fem-1 comparison.")
         else:
             fem1_ee_group = df_original[df_original['Gene Name'] == 'fem-1']['Group'].iloc[0] if not df_original[df_original['Gene Name'] == 'fem-1'].empty else None
             fem1_sc_group = sc_df_fem1_focus[sc_df_fem1_focus['gene name'] == 'fem-1']['group number'].iloc[0] if not sc_df_fem1_focus[sc_df_fem1_focus['gene name'] == 'fem-1'].empty else None
@@ -1444,9 +1450,9 @@ def gene_group_comparisons_page():
                 # Find overlapping genes
                 overlapping_genes = list(set(ee_fem1_group_genes) & set(sc_fem1_group_genes))
                 
-                if 'fem-1' not in overlapping_genes: # Ensure fem-1 is always included if present in both groups
-                    if 'fem-1' in ee_fem1_group_genes and 'fem-1' in sc_fem1_group_genes:
-                        overlapping_genes.append('fem-1')
+                # Ensure fem-1 is always included if present in both groups
+                if 'fem-1' in ee_fem1_group_genes and 'fem-1' in sc_fem1_group_genes and 'fem-1' not in overlapping_genes:
+                    overlapping_genes.append('fem-1')
 
                 if not overlapping_genes:
                     st.info("No overlapping genes found between fem-1's groups in the selected datasets.")
@@ -1473,7 +1479,18 @@ def gene_group_comparisons_page():
                     st.subheader("Overlapping Genes Visualization")
                     
                     # Prepare data for plotting: only common genes with their expression values
-                    plot_data = merged_df_sorted[merged_df_sorted['gene_common'].isin(overlapping_genes)].copy()
+                    # Re-create merged_df for this specific plot to ensure it reflects only the selected datasets
+                    temp_merged_df = pd.merge(
+                        df_original[['Gene Name', 'Mean of Geneid Strains', 'Group']],
+                        sc_df_fem1_focus[['gene name', 'Scaled_TPM', 'group number']].rename(columns={'gene name': 'Gene Name'}),
+                        on='Gene Name',
+                        how='inner'
+                    )
+                    plot_data = temp_merged_df[temp_merged_df['Gene Name'].isin(overlapping_genes)].copy()
+                    
+                    # Filter out zero/near-zero values for log scale
+                    plot_data = plot_data[(plot_data['Mean of Geneid Strains'] > 1e-10) & (plot_data['Scaled_TPM'] > 1e-10)]
+
 
                     if not plot_data.empty:
                         fig_overlap = go.Figure()
@@ -1487,17 +1504,17 @@ def gene_group_comparisons_page():
                             marker=dict(size=regular_dot_size, color='blue', symbol='circle'),
                             hoverinfo='text',
                             text=[
-                                f"<b>{row['gene_common']}</b><br>EE Expr: {row['Mean of Geneid Strains']:.2f}<br>SC Expr: {row['Scaled_TPM']:.2f}"
+                                f"<b>{row['Gene Name']}</b><br>EE Expr: {row['Mean of Geneid Strains']:.2f}<br>SC Expr: {row['Scaled_TPM']:.2f}"
                                 for idx, row in plot_data.iterrows()
                             ],
                             hovertemplate='%{text}<extra></extra>'
                         ))
 
                         # Highlight fem-1 if it's in the overlapping set
-                        fem1_overlap_data = plot_data[plot_data['gene_common'] == 'fem-1']
+                        fem1_overlap_data = plot_data[plot_data['Gene Name'] == 'fem-1']
                         if not fem1_overlap_data.empty:
                             fem1_hover_text_overlap = (
-                                f"<b>{fem1_overlap_data['gene_common'].iloc[0]}</b>"
+                                f"<b>{fem1_overlap_data['Gene Name'].iloc[0]}</b>"
                                 f"<br>EE Expr: {float(fem1_overlap_data['Mean of Geneid Strains'].iloc[0]):.2f}"
                                 f"<br>SC Expr: {float(fem1_overlap_data['Scaled_TPM'].iloc[0]):.2f}"
                                 f"<br>HIGHLIGHTED"
@@ -1536,7 +1553,7 @@ def gene_group_comparisons_page():
                         )
                         st.plotly_chart(fig_overlap)
                     else:
-                        st.info("No data available to plot overlapping genes.")
+                        st.info("No data available to plot overlapping genes after filtering for non-zero expression.")
 
 
 def raw_data_page():
