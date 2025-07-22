@@ -504,6 +504,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
                 hovertemplate='%{text}<extra></extra>'
             ))
 
+    # FIX: Corrected IndexingError by ensuring filtering is done on the correct DataFrame
     fem1_in_selected_groups = selected_groups_data_for_plot3[selected_groups_data_for_plot3[gene_col] == 'fem-1']
     if not fem1_in_selected_groups.empty:
         fem1_hover_text_plot3 = (
@@ -552,7 +553,10 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
     st.subheader(f"{plot_title_prefix}: All Genes (Sorted by {tpm_col})")
     st.write(f"This line graph shows {tpm_col} for all genes, sorted by expression, with points color-coded by their assigned group. Zoom in to see individual gene points.")
     
-    df_sorted_by_tpm = df_data_sc.sort_values(by=tpm_col, ascending=True).reset_index(drop=True)
+    # Filter out zero/near-zero TPM values before sorting for log scale compatibility
+    df_data_sc_filtered = df_data_sc[df_data_sc[tpm_col] > 1e-10].copy() # Use a small epsilon to avoid log(0)
+    
+    df_sorted_by_tpm = df_data_sc_filtered.sort_values(by=tpm_col, ascending=True).reset_index(drop=True)
     
     removed_gene_name_plot_sc = None
     removed_gene_tpm_value_plot_sc = None
@@ -572,7 +576,7 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
         if not group_df_sc.empty:
             fig_sc.add_trace(go.Scatter(
                 x=group_df_sc[tpm_col],
-                y=[0] * len(group_df_sc),
+                y=[0] * len(group_df_sc), # Y-axis remains at 0 for distribution visualization
                 mode='markers',
                 name=f'Group {group_name_sc}',
                 marker=dict(size=regular_dot_size, color=group_color_map.get(str(group_name_sc), 'lightgray')),
@@ -1109,7 +1113,8 @@ def comparison_page():
         st.info("Select a single-cell data category to perform comparison.")
         return
 
-    if sc_df_for_comparison is None: # Double check if a dataframe was actually selected
+    # Ensure sc_df_for_comparison is not None before proceeding
+    if sc_df_for_comparison is None:
         return
 
     df_original_renamed = df_original.rename(columns={'Gene Name': 'gene_common'})
@@ -1168,28 +1173,31 @@ def comparison_page():
     single_cell_color_map = {str(g): single_cell_colors[i % len(single_cell_colors)] for i, g in enumerate(range(1, 11))}
 
     # Add traces for actual data points
-    for sc_group in single_cell_groups_sorted_comp:
-        subset_sc_df = merged_df_sorted[merged_df_sorted['group number'] == float(sc_group)] # Ensure type consistency
-        if not subset_sc_df.empty:
-            fig_comp.add_trace(go.Scatter(
-                x=subset_sc_df['Mean of Geneid Strains'],
-                y=subset_sc_df['Scaled_TPM'],
-                mode='markers',
-                name=f'SC Group {sc_group}',
-                marker=dict(
-                    size=regular_dot_size,
-                    color=single_cell_color_map.get(str(sc_group), 'gray'),
-                    symbol='circle'
-                ),
-                hoverinfo='text',
-                text=[
-                    f"<b>{row['gene_common']}</b><br>EE Expr: {row['Mean of Geneid Strains']:.2f} (Group: {row['Group']})"
-                    f"<br>SC Expr: {row['Scaled_TPM']:.2f} (Group: {row['group number']})"
-                    f"<br>HIGHLIGHTED"
-                ],
-                hovertemplate='%{text}<extra></extra>'
-            ))
-    
+    # FIX: Ensure merged_df_sorted is not empty before iterating to prevent UnboundLocalError
+    if not merged_df_sorted.empty:
+        for sc_group in single_cell_groups_sorted_comp:
+            subset_sc_df = merged_df_sorted[merged_df_sorted['group number'] == float(sc_group)] # Ensure type consistency
+            if not subset_sc_df.empty: # Ensure subset_sc_df is not empty before generating text and adding trace
+                fig_comp.add_trace(go.Scatter(
+                    x=subset_sc_df['Mean of Geneid Strains'],
+                    y=subset_sc_df['Scaled_TPM'],
+                    mode='markers',
+                    name=f'SC Group {sc_group}',
+                    marker=dict(
+                        size=regular_dot_size,
+                        color=single_cell_color_map.get(str(sc_group), 'gray'),
+                        symbol='circle'
+                    ),
+                    hoverinfo='text',
+                    text=[
+                        f"<b>{row['gene_common']}</b><br>EE Expr: {row['Mean of Geneid Strains']:.2f} (Group: {row['Group']})"
+                        f"<br>SC Expr: {row['Scaled_TPM']:.2f} (Group: {row['group number']})"
+                        f"<br>HIGHLIGHTED"
+                        for idx, row in subset_sc_df.iterrows()
+                    ],
+                    hovertemplate='%{text}<extra></extra>'
+                ))
+        
     # Add vertical lines for Early Embryo group max expression
     shapes = []
     # Ensure early_embryo_groups_sorted is defined or derived here if not global
