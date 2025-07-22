@@ -353,7 +353,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
             ))
 
     if not fem1_data_subset.empty and (removed_gene_name_plot1 is None or fem1_data_subset[gene_col].iloc[0] != removed_gene_name_plot1):
-        fem1_data_plot1 = fem1_data_subset[fem1_data_subset[gene_col] != removed_gene_name_plot1]
+        fem1_data_plot1 = fem1_data_subset[fem1_data_subset[gene_col] == 'fem-1'] # Ensure fem-1 is filtered from the subset
         if not fem1_data_plot1.empty:
             fem1_hover_text = (
                 f"<b>{fem1_data_plot1[gene_col].iloc[0]}</b>"
@@ -970,7 +970,34 @@ def original_data_landing_page():
     with col3: # New column for Comparisons button
         st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
         if st.button("🔄 Comparisons", key="view_comparisons", help="Compare gene expression across different datasets."):
-            st.session_state.page = "comparison_graphs"
+            st.session_state.page = "comparison_landing" # Changed to new landing page
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# --- New Comparison Landing Page ---
+def comparison_landing_page():
+    st.header("Comparison Tools")
+    st.write("Select a comparison tool to analyze gene expression across datasets.")
+
+    if st.button("🏠 Back to Home", key="comp_landing_back_home"):
+        st.session_state.page = "home"
+        st.rerun()
+
+    st.markdown("---")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
+        if st.button("📈 Visualizations", key="comp_viz_btn", help="View scatter plots comparing gene expression."):
+            st.session_state.page = "comparison_graphs_viz"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col2:
+        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
+        if st.button("📊 Gene Group Comparisons", key="comp_group_btn", help="Compare gene group assignments across datasets."):
+            st.session_state.page = "gene_group_comparisons"
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -986,10 +1013,6 @@ def processed_data_landing_page():
         st.rerun()
 
     st.markdown("---")
-    # You can add more buttons or content here as you develop the processed data features
-    # Example:
-    # if st.button("Explore Single-Cell Data (Coming Soon!)"):
-    #        st.write("Stay tuned for interactive single-cell analysis tools!")
 
 
 # --- Main Visualization Page ---
@@ -1078,13 +1101,13 @@ def visualizations_page():
             st.info("Select a single-cell data category to view its datasets.")
 
 
-# --- New Comparison Graphs Page ---
-def comparison_page():
-    st.header("Gene Expression Comparison Graphs")
+# --- Comparison Graphs (Visualizations) Page ---
+def comparison_graphs_viz_page():
+    st.header("Gene Expression Comparison Graphs: Visualizations")
     st.write("Compare gene expression between the 'Early Embryo' dataset and a selected single-cell dataset.")
 
-    if st.button("🏠 Back to Home", key="comp_back_home"):
-        st.session_state.page = "home"
+    if st.button("🏠 Back to Comparison Tools", key="comp_viz_back_home"):
+        st.session_state.page = "comparison_landing"
         st.rerun()
     
     st.markdown("---")
@@ -1098,7 +1121,7 @@ def comparison_page():
     selected_category_comp = st.selectbox(
         "Choose a Data Category for Comparison:",
         category_options_comp,
-        key="selected_comparison_category"
+        key="selected_comparison_category_viz"
     )
 
     sc_df_for_comparison = None
@@ -1110,7 +1133,7 @@ def comparison_page():
         selected_comparison_dataset_name = st.selectbox(
             f"Choose a {selected_category_comp} Dataset for Comparison:",
             dataset_options_comp,
-            key="selected_comparison_dataset"
+            key="selected_comparison_dataset_viz"
         )
 
         if selected_comparison_dataset_name:
@@ -1170,7 +1193,7 @@ def comparison_page():
 
     st.markdown("---")
     st.subheader("Search Gene for Highlight & Difference")
-    search_gene_comp = st.text_input("Enter Gene Name to Highlight (e.g., fem-1):", key="search_gene_comp").strip()
+    search_gene_comp = st.text_input("Enter Gene Name to Highlight (e.g., fem-1):", key="search_gene_comp_viz").strip()
 
     fig_comp = go.Figure()
 
@@ -1182,11 +1205,10 @@ def comparison_page():
     single_cell_color_map = {str(g): single_cell_colors[i % len(single_cell_colors)] for i, g in enumerate(range(1, 11))}
 
     # Add traces for actual data points
-    # FIX: Ensure merged_df_sorted is not empty before iterating to prevent UnboundLocalError
     if not merged_df_sorted.empty:
         for sc_group in single_cell_groups_sorted_comp:
             subset_sc_df = merged_df_sorted[merged_df_sorted['group number'] == float(sc_group)] # Ensure type consistency
-            if not subset_sc_df.empty: # Ensure subset_sc_df is not empty before generating text and adding trace
+            if not subset_sc_df.empty:
                 fig_comp.add_trace(go.Scatter(
                     x=subset_sc_df['Mean of Geneid Strains'],
                     y=subset_sc_df['Scaled_TPM'],
@@ -1201,7 +1223,6 @@ def comparison_page():
                     text=[
                         f"<b>{row['gene_common']}</b><br>EE Expr: {row['Mean of Geneid Strains']:.2f} (Group: {row['Group']})"
                         f"<br>SC Expr: {row['Scaled_TPM']:.2f} (Group: {row['group number']})"
-                        f"<br>HIGHLIGHTED"
                         for idx, row in subset_sc_df.iterrows()
                     ],
                     hovertemplate='%{text}<extra></extra>'
@@ -1209,7 +1230,6 @@ def comparison_page():
         
     # Add vertical lines for Early Embryo group max expression
     shapes = []
-    # Ensure early_embryo_groups_sorted is defined or derived here if not global
     early_embryo_groups_sorted_comp = get_sorted_groups(df_original, 'Group')
     for ee_group in early_embryo_groups_sorted_comp:
         ee_group_data = merged_df_sorted[merged_df_sorted['Group'] == ee_group]
@@ -1249,10 +1269,10 @@ def comparison_page():
                     mode='markers',
                     showlegend=False,
                     marker=dict(
-                        size=fem1_dot_size * 2,
-                        color='cyan',
-                        symbol='star',
-                        line=dict(width=3, color='darkblue')
+                        size=fem1_dot_size, # Changed to fem1_dot_size
+                        color='red', # Changed to red
+                        symbol='circle', # Changed to circle
+                        line=dict(width=2, color='DarkRed')
                     ),
                     hoverinfo='text',
                     text=[
@@ -1303,6 +1323,222 @@ def comparison_page():
             st.warning(f"Gene '{search_gene_comp}' not found in common genes for comparison.")
 
 
+# --- New Gene Group Comparisons Page ---
+def gene_group_comparisons_page():
+    st.header("Gene Group Comparisons")
+    st.write("Compare gene group assignments between the Early Embryo dataset and selected single-cell datasets.")
+
+    if st.button("🏠 Back to Comparison Tools", key="gene_group_comp_back_home"):
+        st.session_state.page = "comparison_landing"
+        st.rerun()
+
+    st.markdown("---")
+
+    if not single_cell_dataframes:
+        st.warning("No single-cell processed data files found or loaded for group comparisons.")
+        return
+
+    all_sc_datasets_flat = {}
+    for category, datasets in SINGLE_CELL_FILES_DISPLAY_MAP.items():
+        all_sc_datasets_flat.update(datasets)
+
+    sc_dataset_display_names = list(all_sc_datasets_flat.keys())
+
+    # 3.1. FEATURE: Dynamic Group Table Generator
+    st.subheader("Dynamic Group Table Generator")
+    st.write("Select multiple single-cell datasets to compare their gene group assignments with the Early Embryo dataset.")
+
+    selected_datasets_for_table = st.multiselect(
+        "Select Single-Cell Datasets for Table Comparison:",
+        sc_dataset_display_names,
+        key="selected_datasets_for_group_table"
+    )
+
+    if selected_datasets_for_table:
+        comparison_table_data = []
+        
+        # Start with Early Embryo data
+        base_df = df_original[['Gene Name', 'Group']].copy()
+        base_df.rename(columns={'Gene Name': 'Gene Name', 'Group': 'Early Embryo Group'}, inplace=True)
+        
+        # Initialize a list of dataframes to merge
+        dfs_to_merge = [base_df]
+
+        # Collect data for selected single-cell datasets
+        for dataset_name in selected_datasets_for_table:
+            if dataset_name in all_sc_datasets_flat:
+                sc_df = single_cell_dataframes.get(
+                    "Germ Cells", {}).get(dataset_name) or \
+                    single_cell_dataframes.get("Somatic Cells", {}).get(dataset_name)
+
+                if sc_df is not None:
+                    # Ensure column names are consistent for merging
+                    temp_sc_df = sc_df[['gene name', 'group number']].copy()
+                    temp_sc_df.rename(columns={'gene name': 'Gene Name', 'group number': f'{dataset_name} Group'}, inplace=True)
+                    dfs_to_merge.append(temp_sc_df)
+                else:
+                    st.warning(f"Data for '{dataset_name}' could not be loaded for table comparison.")
+        
+        # Perform outer merge to keep all genes from all selected datasets
+        final_comparison_df = dfs_to_merge[0]
+        for i in range(1, len(dfs_to_merge)):
+            final_comparison_df = pd.merge(final_comparison_df, dfs_to_merge[i], on='Gene Name', how='outer')
+
+        # Add Match Status columns
+        for dataset_name in selected_datasets_for_table:
+            group_col_name = f'{dataset_name} Group'
+            if group_col_name in final_comparison_df.columns:
+                final_comparison_df[f'{dataset_name} Match Status'] = final_comparison_df.apply(
+                    lambda row: "SAME" if row['Early Embryo Group'] == str(row[group_col_name]) else "DIFFERENT",
+                    axis=1
+                )
+                # Handle NaN groups for match status
+                final_comparison_df[f'{dataset_name} Match Status'] = final_comparison_df[f'{dataset_name} Match Status'].mask(
+                    pd.isna(final_comparison_df['Early Embryo Group']) | pd.isna(final_comparison_df[group_col_name]),
+                    'N/A'
+                )
+
+        # Highlight fem-1 in the table
+        def highlight_fem1_row(row):
+            styles = [''] * len(row)
+            if row['Gene Name'] == 'fem-1':
+                styles = ['background-color: #FFDDDD; font-weight: bold; color: red;'] * len(row)
+            return styles
+
+        st.dataframe(final_comparison_df.style.apply(highlight_fem1_row, axis=1), use_container_width=True)
+
+    st.markdown("---")
+
+    # 3.2. FEATURE: fem-1 Focused Group Comparison
+    st.subheader("fem-1 Focused Group Comparison")
+    st.write("Compare genes overlapping with fem-1's group in Early Embryo and a selected single-cell dataset.")
+
+    selected_dataset_for_fem1_focus = st.selectbox(
+        "Select ONE Single-Cell Dataset for fem-1 Focus:",
+        [""] + sc_dataset_display_names, # Add empty option
+        key="selected_dataset_for_fem1_focus"
+    )
+
+    if selected_dataset_for_fem1_focus:
+        sc_df_fem1_focus = single_cell_dataframes.get(
+            "Germ Cells", {}).get(selected_dataset_for_fem1_focus) or \
+            single_cell_dataframes.get("Somatic Cells", {}).get(selected_dataset_for_fem1_focus)
+        
+        if sc_df_fem1_focus is None:
+            st.warning(f"Data for '{selected_dataset_for_fem1_focus}' could not be loaded for fem-1 comparison.")
+        else:
+            fem1_ee_group = df_original[df_original['Gene Name'] == 'fem-1']['Group'].iloc[0] if not df_original[df_original['Gene Name'] == 'fem-1'].empty else None
+            fem1_sc_group = sc_df_fem1_focus[sc_df_fem1_focus['gene name'] == 'fem-1']['group number'].iloc[0] if not sc_df_fem1_focus[sc_df_fem1_focus['gene name'] == 'fem-1'].empty else None
+
+            if fem1_ee_group is None or fem1_sc_group is None:
+                st.warning(f"fem-1 group not found in one or both selected datasets.")
+            else:
+                st.info(f"fem-1 is in Group **{fem1_ee_group}** in Early Embryo and Group **{fem1_sc_group}** in {selected_dataset_for_fem1_focus}.")
+
+                # Get genes in fem-1's group from Early Embryo
+                ee_fem1_group_genes = df_original[df_original['Group'] == fem1_ee_group]['Gene Name'].tolist()
+                
+                # Get genes in fem-1's group from selected SC dataset
+                sc_fem1_group_genes = sc_df_fem1_focus[sc_df_fem1_focus['group number'] == fem1_sc_group]['gene name'].tolist()
+
+                # Find overlapping genes
+                overlapping_genes = list(set(ee_fem1_group_genes) & set(sc_fem1_group_genes))
+                
+                if 'fem-1' not in overlapping_genes: # Ensure fem-1 is always included if present in both groups
+                    if 'fem-1' in ee_fem1_group_genes and 'fem-1' in sc_fem1_group_genes:
+                        overlapping_genes.append('fem-1')
+
+                if not overlapping_genes:
+                    st.info("No overlapping genes found between fem-1's groups in the selected datasets.")
+                else:
+                    st.subheader("Overlapping Genes:")
+                    
+                    # Create table for overlapping genes
+                    overlapping_df = pd.DataFrame({'Gene Name': sorted(overlapping_genes)})
+                    
+                    # Add expression levels and group numbers for context
+                    ee_expr_map = df_original.set_index('Gene Name').to_dict('index')
+                    sc_expr_map = sc_df_fem1_focus.set_index('gene name').to_dict('index')
+
+                    overlapping_df['Early Embryo Group'] = overlapping_df['Gene Name'].map(lambda x: ee_expr_map.get(x, {}).get('Group'))
+                    overlapping_df['Early Embryo Expression'] = overlapping_df['Gene Name'].map(lambda x: ee_expr_map.get(x, {}).get('Mean of Geneid Strains'))
+                    
+                    overlapping_df[f'{selected_dataset_for_fem1_focus} Group'] = overlapping_df['Gene Name'].map(lambda x: sc_expr_map.get(x, {}).get('group number'))
+                    overlapping_df[f'{selected_dataset_for_fem1_focus} Expression'] = overlapping_df['Gene Name'].map(lambda x: sc_expr_map.get(x, {}).get('Scaled_TPM'))
+                    
+                    # Highlight fem-1 in the table
+                    st.dataframe(overlapping_df.style.apply(highlight_fem1_row, axis=1), use_container_width=True)
+
+                    # Create graph for overlapping genes
+                    st.subheader("Overlapping Genes Visualization")
+                    
+                    # Prepare data for plotting: only common genes with their expression values
+                    plot_data = merged_df_sorted[merged_df_sorted['gene_common'].isin(overlapping_genes)].copy()
+
+                    if not plot_data.empty:
+                        fig_overlap = go.Figure()
+
+                        # Plot all overlapping genes
+                        fig_overlap.add_trace(go.Scatter(
+                            x=plot_data['Mean of Geneid Strains'],
+                            y=plot_data['Scaled_TPM'],
+                            mode='markers',
+                            name='Overlapping Genes',
+                            marker=dict(size=regular_dot_size, color='blue', symbol='circle'),
+                            hoverinfo='text',
+                            text=[
+                                f"<b>{row['gene_common']}</b><br>EE Expr: {row['Mean of Geneid Strains']:.2f}<br>SC Expr: {row['Scaled_TPM']:.2f}"
+                                for idx, row in plot_data.iterrows()
+                            ],
+                            hovertemplate='%{text}<extra></extra>'
+                        ))
+
+                        # Highlight fem-1 if it's in the overlapping set
+                        fem1_overlap_data = plot_data[plot_data['gene_common'] == 'fem-1']
+                        if not fem1_overlap_data.empty:
+                            fem1_hover_text_overlap = (
+                                f"<b>{fem1_overlap_data['gene_common'].iloc[0]}</b>"
+                                f"<br>EE Expr: {float(fem1_overlap_data['Mean of Geneid Strains'].iloc[0]):.2f}"
+                                f"<br>SC Expr: {float(fem1_overlap_data['Scaled_TPM'].iloc[0]):.2f}"
+                                f"<br>HIGHLIGHTED"
+                            )
+                            fig_overlap.add_trace(go.Scatter(
+                                x=fem1_overlap_data['Mean of Geneid Strains'],
+                                y=fem1_overlap_data['Scaled_TPM'],
+                                mode='markers',
+                                marker=dict(size=fem1_dot_size, color='red', symbol='circle', line=dict(width=2, color='DarkRed')),
+                                name='fem-1',
+                                hoverinfo='text',
+                                text=[fem1_hover_text_overlap],
+                                hovertemplate='%{text}<extra></extra>'
+                            ))
+                        
+                        fig_overlap.update_layout(
+                            title=f'Overlapping Genes: Early Embryo vs. {selected_dataset_for_fem1_focus}',
+                            xaxis_title='Early Embryo Expression (Mean of Geneid Strains)',
+                            yaxis_title=f'{selected_dataset_for_fem1_focus} Expression (Scaled TPM)',
+                            font_family="Times New Roman",
+                            title_font_size=20,
+                            xaxis_title_font_size=14,
+                            yaxis_title_font_size=14,
+                            xaxis_type='log',
+                            yaxis_type='log',
+                            xaxis_exponentformat='power',
+                            xaxis_showexponent='all',
+                            xaxis_tickformat='e',
+                            yaxis_exponentformat='power',
+                            yaxis_showexponent='all',
+                            yaxis_tickformat='e',
+                            width=900,
+                            height=600,
+                            hovermode='closest',
+                            legend_title_text='Gene Type'
+                        )
+                        st.plotly_chart(fig_overlap)
+                    else:
+                        st.info("No data available to plot overlapping genes.")
+
+
 def raw_data_page():
     st.header("Raw Data - Gene Search Tool")
     st.write("This page allows you to view and search different gene expression datasets.")
@@ -1333,7 +1569,15 @@ def raw_data_page():
         mean_col_name = 'Mean of Geneid Strains'
         display_dataset_name = "Early Embryo"
         st.subheader("Early Embryo Data Overview")
-        st.dataframe(current_df, use_container_width=True)
+        
+        # Highlight fem-1 in raw data table
+        def highlight_fem1_row_raw(row):
+            styles = [''] * len(row)
+            if row['Gene Name'] == 'fem-1':
+                styles = ['background-color: #FFDDDD; font-weight: bold; color: red;'] * len(row)
+            return styles
+        st.dataframe(current_df.style.apply(highlight_fem1_row_raw, axis=1), use_container_width=True)
+
     else: # Single-Cell Processed Data
         if not single_cell_dataframes:
             st.warning("No single-cell processed data files found or loaded. Please ensure they exist in the specified directory.")
@@ -1361,7 +1605,15 @@ def raw_data_page():
                 mean_col_name = 'Scaled_TPM'
                 display_dataset_name = selected_single_cell_dataset
                 st.subheader(f"Data Overview: {display_dataset_name}")
-                st.dataframe(current_df, use_container_width=True)
+                
+                # Highlight fem-1 in raw data table
+                def highlight_fem1_row_sc_raw(row):
+                    styles = [''] * len(row)
+                    if row['gene name'] == 'fem-1':
+                        styles = ['background-color: #FFDDDD; font-weight: bold; color: red;'] * len(row)
+                    return styles
+                st.dataframe(current_df.style.apply(highlight_fem1_row_sc_raw, axis=1), use_container_width=True)
+
             else:
                 st.info("Select a single-cell dataset to view its data.")
                 return
@@ -1391,7 +1643,11 @@ def raw_data_page():
                     search_result = current_df[current_df[gene_col_name].str.lower() == gene_name_query.lower()]
                     if not search_result.empty:
                         st.subheader(f"Results for {gene_name_query} (in {display_dataset_name}):")
-                        st.dataframe(search_result, use_container_width=True)
+                        # Highlight fem-1 in search result table
+                        if data_source_option == "Early Embryo (AnalysisFile2.txt)":
+                            st.dataframe(search_result.style.apply(highlight_fem1_row_raw, axis=1), use_container_width=True)
+                        else:
+                            st.dataframe(search_result.style.apply(highlight_fem1_row_sc_raw, axis=1), use_container_width=True)
                     else:
                         st.warning(f"No gene found with the name '{gene_name_query}'. Please check the spelling.")
                 else:
@@ -1426,7 +1682,11 @@ def raw_data_page():
                             closest_genes = closest_genes.drop(columns=['abs_diff_from_query_mean', f'{mean_col_name}_numeric'])
 
                             if not closest_genes.empty:
-                                st.dataframe(closest_genes, use_container_width=True)
+                                # Highlight fem-1 in search result table
+                                if data_source_option == "Early Embryo (AnalysisFile2.txt)":
+                                    st.dataframe(closest_genes.style.apply(highlight_fem1_row_raw, axis=1), use_container_width=True)
+                                else:
+                                    st.dataframe(closest_genes.style.apply(highlight_fem1_row_sc_raw, axis=1), use_container_width=True)
                             else:
                                 st.warning("No genes found in the specified range.")
                         else:
@@ -1450,7 +1710,11 @@ elif st.session_state.page == "processed_data_landing":
     processed_data_landing_page()
 elif st.session_state.page == "visualizations":
     visualizations_page()
+elif st.session_state.page == "comparison_landing": # New landing page for comparisons
+    comparison_landing_page()
+elif st.session_state.page == "comparison_graphs_viz": # Existing comparison plot
+    comparison_graphs_viz_page()
+elif st.session_state.page == "gene_group_comparisons": # New gene group comparison tool
+    gene_group_comparisons_page()
 elif st.session_state.page == "raw_data":
     raw_data_page()
-elif st.session_state.page == "comparison_graphs":    
-    comparison_page()
