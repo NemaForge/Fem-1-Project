@@ -207,6 +207,17 @@ SINGLE_CELL_FILES_DISPLAY_MAP = {
 regular_dot_size = 5
 fem1_dot_size = 10
 
+# Global helper function to highlight fem-1 in tables
+def highlight_fem1_row(row):
+    styles = [''] * len(row)
+    # Check for both 'Gene Name' (Early Embryo) and 'gene name' (Single-Cell)
+    if 'Gene Name' in row.index and row['Gene Name'] == 'fem-1':
+        styles = ['background-color: #FFDDDD; font-weight: bold; color: red;'] * len(row)
+    elif 'gene name' in row.index and row['gene name'] == 'fem-1':
+        styles = ['background-color: #FFDDDD; font-weight: bold; color: red;'] * len(row)
+    return styles
+
+
 @st.cache_data
 def load_original_data(path):
     """Loads and preprocesses the original AnalysisFile2.txt data."""
@@ -1338,77 +1349,74 @@ def gene_group_comparisons_page():
         st.warning("No single-cell processed data files found or loaded for group comparisons.")
         return
 
-    all_sc_datasets_flat = {}
-    for category, datasets in SINGLE_CELL_FILES_DISPLAY_MAP.items():
-        all_sc_datasets_flat.update(datasets)
-
-    sc_dataset_display_names = list(all_sc_datasets_flat.keys())
-
     # 3.1. FEATURE: Dynamic Group Table Generator
     st.subheader("Dynamic Group Table Generator")
     st.write("Select multiple single-cell datasets to compare their gene group assignments with the Early Embryo dataset.")
 
-    selected_datasets_for_table = st.multiselect(
-        "Select Single-Cell Datasets for Table Comparison:",
-        sc_dataset_display_names,
-        key="selected_datasets_for_group_table"
+    # Dropdowns for category selection
+    category_options_dynamic = list(SINGLE_CELL_FILES_DISPLAY_MAP.keys())
+    selected_category_dynamic = st.selectbox(
+        "Choose a Data Category for Table:",
+        category_options_dynamic,
+        key="selected_category_dynamic_table"
     )
 
-    if selected_datasets_for_table:
-        comparison_table_data = []
-        
-        # Start with Early Embryo data
-        base_df = df_original[['Gene Name', 'Group']].copy()
-        base_df.rename(columns={'Gene Name': 'Gene Name', 'Group': 'Early Embryo Group'}, inplace=True)
-        
-        # Initialize a list of dataframes to merge
-        dfs_to_merge = [base_df]
+    selected_datasets_for_table = []
+    if selected_category_dynamic:
+        # Multiselect for specific datasets within the chosen category
+        datasets_in_selected_category = list(SINGLE_CELL_FILES_DISPLAY_MAP[selected_category_dynamic].keys())
+        selected_datasets_for_table = st.multiselect(
+            f"Select {selected_category_dynamic} Datasets for Table Comparison:",
+            datasets_in_selected_category,
+            key="selected_datasets_for_group_table"
+        )
 
-        # Collect data for selected single-cell datasets
-        for dataset_name in selected_datasets_for_table:
-            if dataset_name in all_sc_datasets_flat:
-                # Retrieve sc_df safely
-                sc_df = None
-                if dataset_name in single_cell_dataframes.get("Germ Cells", {}):
-                    sc_df = single_cell_dataframes["Germ Cells"][dataset_name]
-                elif dataset_name in single_cell_dataframes.get("Somatic Cells", {}):
-                    sc_df = single_cell_dataframes["Somatic Cells"][dataset_name]
+    if st.button("Generate Table", key="generate_dynamic_table_btn"):
+        if selected_datasets_for_table:
+            comparison_table_data = []
+            
+            # Start with Early Embryo data
+            base_df = df_original[['Gene Name', 'Group']].copy()
+            base_df.rename(columns={'Gene Name': 'Gene Name', 'Group': 'Early Embryo Group'}, inplace=True)
+            
+            # Initialize a list of dataframes to merge
+            dfs_to_merge = [base_df]
 
-                if sc_df is not None and not sc_df.empty: # FIX: Check if DataFrame is not empty
+            # Collect data for selected single-cell datasets
+            for dataset_name in selected_datasets_for_table:
+                # Retrieve sc_df safely from the nested dictionary
+                sc_df = single_cell_dataframes.get(selected_category_dynamic, {}).get(dataset_name)
+
+                if sc_df is not None and not sc_df.empty: # Check if DataFrame is not empty
                     # Ensure column names are consistent for merging
                     temp_sc_df = sc_df[['gene name', 'group number']].copy()
                     temp_sc_df.rename(columns={'gene name': 'Gene Name', 'group number': f'{dataset_name} Group'}, inplace=True)
                     dfs_to_merge.append(temp_sc_df)
                 else:
                     st.warning(f"Data for '{dataset_name}' could not be loaded or is empty for table comparison.")
-        
-        # Perform outer merge to keep all genes from all selected datasets
-        final_comparison_df = dfs_to_merge[0]
-        for i in range(1, len(dfs_to_merge)):
-            final_comparison_df = pd.merge(final_comparison_df, dfs_to_merge[i], on='Gene Name', how='outer')
+            
+            # Perform outer merge to keep all genes from all selected datasets
+            final_comparison_df = dfs_to_merge[0]
+            for i in range(1, len(dfs_to_merge)):
+                final_comparison_df = pd.merge(final_comparison_df, dfs_to_merge[i], on='Gene Name', how='outer')
 
-        # Add Match Status columns
-        for dataset_name in selected_datasets_for_table:
-            group_col_name = f'{dataset_name} Group'
-            if group_col_name in final_comparison_df.columns:
-                final_comparison_df[f'{dataset_name} Match Status'] = final_comparison_df.apply(
-                    lambda row: "SAME" if row['Early Embryo Group'] == str(row[group_col_name]) else "DIFFERENT",
-                    axis=1
-                )
-                # Handle NaN groups for match status
-                final_comparison_df[f'{dataset_name} Match Status'] = final_comparison_df[f'{dataset_name} Match Status'].mask(
-                    pd.isna(final_comparison_df['Early Embryo Group']) | pd.isna(final_comparison_df[group_col_name]),
-                    'N/A'
-                )
+            # Add Match Status columns
+            for dataset_name in selected_datasets_for_table:
+                group_col_name = f'{dataset_name} Group'
+                if group_col_name in final_comparison_df.columns:
+                    final_comparison_df[f'{dataset_name} Match Status'] = final_comparison_df.apply(
+                        lambda row: "SAME" if row['Early Embryo Group'] == str(row[group_col_name]) else "DIFFERENT",
+                        axis=1
+                    )
+                    # Handle NaN groups for match status
+                    final_comparison_df[f'{dataset_name} Match Status'] = final_comparison_df[f'{dataset_name} Match Status'].mask(
+                        pd.isna(final_comparison_df['Early Embryo Group']) | pd.isna(final_comparison_df[group_col_name]),
+                        'N/A'
+                    )
 
-        # Highlight fem-1 in the table
-        def highlight_fem1_row(row):
-            styles = [''] * len(row)
-            if row['Gene Name'] == 'fem-1':
-                styles = ['background-color: #FFDDDD; font-weight: bold; color: red;'] * len(row)
-            return styles
-
-        st.dataframe(final_comparison_df.style.apply(highlight_fem1_row, axis=1), use_container_width=True)
+            st.dataframe(final_comparison_df.style.apply(highlight_fem1_row, axis=1), use_container_width=True)
+        else:
+            st.info("Please select at least one dataset to generate the table.")
 
     st.markdown("---")
 
@@ -1416,20 +1424,27 @@ def gene_group_comparisons_page():
     st.subheader("fem-1 Focused Group Comparison")
     st.write("Compare genes overlapping with fem-1's group in Early Embryo and a selected single-cell dataset.")
 
-    selected_dataset_for_fem1_focus = st.selectbox(
-        "Select ONE Single-Cell Dataset for fem-1 Focus:",
-        [""] + sc_dataset_display_names, # Add empty option
-        key="selected_dataset_for_fem1_focus"
+    # Dropdowns for category selection for fem-1 focus
+    category_options_fem1 = list(SINGLE_CELL_FILES_DISPLAY_MAP.keys())
+    selected_category_fem1 = st.selectbox(
+        "Choose a Data Category for fem-1 Focus:",
+        category_options_fem1,
+        key="selected_category_fem1_focus"
     )
+
+    selected_dataset_for_fem1_focus = None
+    if selected_category_fem1:
+        datasets_in_selected_category_fem1 = list(SINGLE_CELL_FILES_DISPLAY_MAP[selected_category_fem1].keys())
+        selected_dataset_for_fem1_focus = st.selectbox(
+            f"Select ONE {selected_category_fem1} Dataset for fem-1 Focus:",
+            [""] + datasets_in_selected_category_fem1, # Add empty option
+            key="selected_dataset_for_fem1_focus_dataset"
+        )
 
     if selected_dataset_for_fem1_focus:
         # Retrieve sc_df_fem1_focus safely
-        sc_df_fem1_focus = None
-        if selected_dataset_for_fem1_focus in single_cell_dataframes.get("Germ Cells", {}):
-            sc_df_fem1_focus = single_cell_dataframes["Germ Cells"][selected_dataset_for_fem1_focus]
-        elif selected_dataset_for_fem1_focus in single_cell_dataframes.get("Somatic Cells", {}):
-            sc_df_fem1_focus = single_cell_dataframes["Somatic Cells"][selected_dataset_for_fem1_focus]
-
+        sc_df_fem1_focus = single_cell_dataframes.get(selected_category_fem1, {}).get(selected_dataset_for_fem1_focus)
+        
         if sc_df_fem1_focus is None or sc_df_fem1_focus.empty:
             st.warning(f"Data for '{selected_dataset_for_fem1_focus}' could not be loaded or is empty for fem-1 comparison.")
         else:
@@ -1588,12 +1603,7 @@ def raw_data_page():
         st.subheader("Early Embryo Data Overview")
         
         # Highlight fem-1 in raw data table
-        def highlight_fem1_row_raw(row):
-            styles = [''] * len(row)
-            if row['Gene Name'] == 'fem-1':
-                styles = ['background-color: #FFDDDD; font-weight: bold; color: red;'] * len(row)
-            return styles
-        st.dataframe(current_df.style.apply(highlight_fem1_row_raw, axis=1), use_container_width=True)
+        st.dataframe(current_df.style.apply(highlight_fem1_row, axis=1), use_container_width=True)
 
     else: # Single-Cell Processed Data
         if not single_cell_dataframes:
@@ -1624,12 +1634,7 @@ def raw_data_page():
                 st.subheader(f"Data Overview: {display_dataset_name}")
                 
                 # Highlight fem-1 in raw data table
-                def highlight_fem1_row_sc_raw(row):
-                    styles = [''] * len(row)
-                    if row['gene name'] == 'fem-1':
-                        styles = ['background-color: #FFDDDD; font-weight: bold; color: red;'] * len(row)
-                    return styles
-                st.dataframe(current_df.style.apply(highlight_fem1_row_sc_raw, axis=1), use_container_width=True)
+                st.dataframe(current_df.style.apply(highlight_fem1_row, axis=1), use_container_width=True)
 
             else:
                 st.info("Select a single-cell dataset to view its data.")
@@ -1661,10 +1666,7 @@ def raw_data_page():
                     if not search_result.empty:
                         st.subheader(f"Results for {gene_name_query} (in {display_dataset_name}):")
                         # Highlight fem-1 in search result table
-                        if data_source_option == "Early Embryo (AnalysisFile2.txt)":
-                            st.dataframe(search_result.style.apply(highlight_fem1_row_raw, axis=1), use_container_width=True)
-                        else:
-                            st.dataframe(search_result.style.apply(highlight_fem1_row_sc_raw, axis=1), use_container_width=True)
+                        st.dataframe(search_result.style.apply(highlight_fem1_row, axis=1), use_container_width=True)
                     else:
                         st.warning(f"No gene found with the name '{gene_name_query}'. Please check the spelling.")
                 else:
@@ -1700,10 +1702,7 @@ def raw_data_page():
 
                             if not closest_genes.empty:
                                 # Highlight fem-1 in search result table
-                                if data_source_option == "Early Embryo (AnalysisFile2.txt)":
-                                    st.dataframe(closest_genes.style.apply(highlight_fem1_row_raw, axis=1), use_container_width=True)
-                                else:
-                                    st.dataframe(closest_genes.style.apply(highlight_fem1_row_sc_raw, axis=1), use_container_width=True)
+                                st.dataframe(closest_genes.style.apply(highlight_fem1_row, axis=1), use_container_width=True)
                             else:
                                 st.warning("No genes found in the specified range.")
                         else:
