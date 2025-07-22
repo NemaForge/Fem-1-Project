@@ -504,7 +504,6 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
                 hovertemplate='%{text}<extra></extra>'
             ))
 
-    # FIX: Corrected IndexingError by ensuring filtering is done on the correct DataFrame
     fem1_in_selected_groups = selected_groups_data_for_plot3[selected_groups_data_for_plot3[gene_col] == 'fem-1']
     if not fem1_in_selected_groups.empty:
         fem1_hover_text_plot3 = (
@@ -571,12 +570,19 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
 
     fig_sc = go.Figure()
 
+    # Define a small random jitter for y-coordinates to prevent overplotting
+    # The range of jitter should be small enough not to distort the "line" appearance too much
+    # but large enough to separate points.
+    jitter_scale = 0.05 # Adjust this value as needed for visual clarity
+
     for group_name_sc in get_sorted_groups(df_sorted_by_tpm, group_col):
         group_df_sc = df_sorted_by_tpm[df_sorted_by_tpm[group_col] == group_name_sc]
         if not group_df_sc.empty:
+            # Apply random jitter to y-coordinates
+            y_jittered = np.random.uniform(-jitter_scale, jitter_scale, size=len(group_df_sc))
             fig_sc.add_trace(go.Scatter(
                 x=group_df_sc[tpm_col],
-                y=[0] * len(group_df_sc), # Y-axis remains at 0 for distribution visualization
+                y=y_jittered, # Use jittered y-values
                 mode='markers',
                 name=f'Group {group_name_sc}',
                 marker=dict(size=regular_dot_size, color=group_color_map.get(str(group_name_sc), 'lightgray')),
@@ -595,9 +601,11 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
             f"<br>{tpm_col}: {float(fem1_in_sorted_sc[tpm_col].iloc[0]):.2f}"
             f"<br>Group: {fem1_in_sorted_sc[group_col].iloc[0]}"
         )
+        # Apply jitter to fem-1 as well
+        fem1_y_jittered = np.random.uniform(-jitter_scale, jitter_scale, size=len(fem1_in_sorted_sc))
         fig_sc.add_trace(go.Scatter(
             x=fem1_in_sorted_sc[tpm_col],
-            y=[0] * len(fem1_in_sorted_sc),
+            y=fem1_y_jittered, # Use jittered y-values for fem-1
             mode='markers',
             marker=dict(size=fem1_dot_size, color='red', symbol='circle', line=dict(width=2, color='DarkRed')),
             name='fem-1',
@@ -621,7 +629,8 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
         xaxis_tickangle=90,
         width=1200,
         height=300,
-        legend_title_text='Group'
+        legend_title_text='Group',
+        yaxis_range=[-jitter_scale * 1.5, jitter_scale * 1.5] # Adjust y-axis range to accommodate jitter
     )
     st.plotly_chart(fig_sc)
     if removed_gene_name_plot_sc:
