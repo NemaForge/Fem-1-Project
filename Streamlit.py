@@ -1013,17 +1013,166 @@ def comparison_landing_page():
         st.markdown('</div>', unsafe_allow_html=True)
 
 
-# --- Processed Data Landing Page (Currently Blank) ---
+# --- Processed Data Landing Page ---
 def processed_data_landing_page():
     st.header("Processed Data Analysis")
     st.write("This section is dedicated to processed data, such as single-cell RNA sequencing analysis.")
-    st.info("Functionality for processed data will be added here soon!")
 
     if st.button("🏠 Back to Home", key="processed_landing_back_home"):
         st.session_state.page = "home"
         st.rerun()
 
     st.markdown("---")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
+        if st.button("🔍 Data", key="processed_data_table_btn", help="View and compare processed data tables."):
+            st.session_state.page = "processed_data_table"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col2:
+        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
+        if st.button("📈 Visualizations", key="processed_data_viz_btn", help="View visualizations of processed data."):
+            st.session_state.page = "visualizations" # Re-use existing visualizations page
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# --- New Processed Data Table Page ---
+def processed_data_table_page():
+    st.header("Processed Data: Data Tables")
+    st.write("Compare averaged somatic cell data with individual germline single-cell datasets.")
+
+    if st.button("🏠 Back to Processed Data", key="processed_data_table_back"):
+        st.session_state.page = "processed_data_landing"
+        st.rerun()
+
+    st.markdown("---")
+
+    # Calculate average somatic data
+    somatic_genes_data = {} # {gene_name: {'tpm_values': [], 'group_numbers': []}}
+
+    # Iterate through all somatic cell files
+    for dataset_name, filename in SINGLE_CELL_FILES_DISPLAY_MAP["Somatic Cells"].items():
+        sc_df = single_cell_dataframes.get("Somatic Cells", {}).get(dataset_name)
+        if sc_df is not None and not sc_df.empty:
+            for _, row in sc_df.iterrows():
+                gene_name = row['gene name']
+                scaled_tpm = row['Scaled_TPM']
+                group_number = row['group number']
+
+                if gene_name not in somatic_genes_data:
+                    somatic_genes_data[gene_name] = {'tpm_values': [], 'group_numbers': []}
+                
+                somatic_genes_data[gene_name]['tpm_values'].append(scaled_tpm)
+                somatic_genes_data[gene_name]['group_numbers'].append(group_number)
+    
+    averaged_somatic_data = []
+    for gene, data in somatic_genes_data.items():
+        avg_tpm = np.mean(data['tpm_values']) if data['tpm_values'] else np.nan
+        # For group number, taking the mean might not be meaningful if groups are categorical.
+        # For now, we'll take the mode or just list unique if few, but average is requested.
+        # If group numbers are truly categorical, averaging is not ideal.
+        # Let's average for now as requested, but a warning might be appropriate for real data.
+        avg_group = np.mean(data['group_numbers']) if data['group_numbers'] else np.nan
+        averaged_somatic_data.append({
+            'Gene Name': gene,
+            'Average Somatic Scaled_TPM': avg_tpm,
+            'Average Somatic Group Number': avg_group
+        })
+    
+    df_avg_somatic = pd.DataFrame(averaged_somatic_data)
+    df_avg_somatic.set_index('Gene Name', inplace=True)
+
+
+    st.subheader("Somatic vs. Germline Single-Cell Data Comparison")
+    st.write("Select a Germline Single-Cell dataset to compare its gene expression and group numbers with the averaged somatic cell data.")
+
+    germline_datasets = list(SINGLE_CELL_FILES_DISPLAY_MAP["Germ Cells"].keys())
+    selected_germline_dataset = st.selectbox(
+        "Select Germline Single-Cell Dataset:",
+        [""] + germline_datasets,
+        key="selected_germline_for_processed_table"
+    )
+
+    if selected_germline_dataset:
+        germ_sc_df = single_cell_dataframes.get("Germ Cells", {}).get(selected_germline_dataset)
+
+        if germ_sc_df is None or germ_sc_df.empty:
+            st.warning(f"Data for '{selected_germline_dataset}' could not be loaded or is empty.")
+        else:
+            germ_sc_df_renamed = germ_sc_df.rename(columns={
+                'gene name': 'Gene Name',
+                'Scaled_TPM': f'{selected_germline_dataset} Scaled_TPM',
+                'group number': f'{selected_germline_dataset} Group Number'
+            })
+            germ_sc_df_renamed.set_index('Gene Name', inplace=True)
+
+            # Merge averaged somatic data with selected germline data
+            comparison_df = pd.merge(
+                df_avg_somatic,
+                germ_sc_df_renamed[[f'{selected_germline_dataset} Scaled_TPM', f'{selected_germline_dataset} Group Number']],
+                left_index=True,
+                right_index=True,
+                how='inner' # Only show genes present in both for direct comparison
+            )
+
+            if not comparison_df.empty:
+                # Quantify differences (Score out of 100)
+                # Add 1 to TPM for log transform to handle zero values
+                comparison_df['Log_Avg_Somatic_TPM'] = np.log10(comparison_df['Average Somatic Scaled_TPM'] + 1)
+                comparison_df[f'Log_{selected_germline_dataset}_TPM'] = np.log10(comparison_df[f'{selected_germline_dataset} Scaled_TPM'] + 1)
+
+                # Calculate absolute log difference
+                comparison_df['Abs_Log_Diff'] = np.abs(comparison_df['Log_Avg_Somatic_TPM'] - comparison_df[f'Log_{selected_germline_dataset}_TPM'])
+
+                # Determine max log difference for normalization (avoid division by zero if all diffs are zero)
+                max_log_diff = comparison_df['Abs_Log_Diff'].max()
+                
+                # Calculate score: 100 - (normalized_difference * 100)
+                if max_log_diff > 0:
+                    comparison_df['Expression Similarity Score (0-100)'] = 100 - (comparison_df['Abs_Log_Diff'] / max_log_diff * 100)
+                else:
+                    comparison_df['Expression Similarity Score (0-100)'] = 100 # All differences are zero, so perfect score
+
+                # Round scores for display
+                comparison_df['Expression Similarity Score (0-100)'] = comparison_df['Expression Similarity Score (0-100)'].round(2)
+
+                # Select and reorder columns for display
+                display_cols = [
+                    'Average Somatic Scaled_TPM',
+                    'Average Somatic Group Number',
+                    f'{selected_germline_dataset} Scaled_TPM',
+                    f'{selected_germline_dataset} Group Number',
+                    'Expression Similarity Score (0-100)'
+                ]
+                comparison_df_display = comparison_df[display_cols].reset_index() # Reset index to make Gene Name a column again
+
+                st.dataframe(comparison_df_display.style.apply(highlight_fem1_row, axis=1), use_container_width=True)
+
+                st.markdown("---")
+                st.subheader("How the 'Expression Similarity Score' is Derived:")
+                st.markdown(r"""
+                The 'Expression Similarity Score' quantifies how similar a gene's expression level is between the averaged somatic cells and the selected germline single-cell dataset, on a scale from 0 to 100.
+                
+                The calculation involves the following steps:
+                1.  **Log Transformation**: We first take the base-10 logarithm of the expression values (Scaled TPM) from both the averaged somatic data and the selected germline data. A small constant of 1 is added to each TPM value before the logarithm ($\log_{10}(\text{TPM} + 1)$) to handle cases where TPM might be zero, which cannot be log-transformed. This transformation helps to normalize the data and makes differences in fold-change more apparent.
+                2.  **Absolute Log Difference**: We calculate the absolute difference between these log-transformed values for each gene:
+                    $$ \text{Abs\_Log\_Diff} = \left| \log_{10}(\text{Avg\_Somatic\_TPM} + 1) - \log_{10}(\text{Germline\_TPM} + 1) \right| $$
+                3.  **Normalization**: This absolute log difference is then normalized by the maximum `Abs_Log_Diff` observed across all genes in the current comparison. This scales the differences relative to the largest observed difference.
+                4.  **Score Calculation**: Finally, the score is calculated as:
+                    $$ \text{Score} = 100 - \left( \frac{\text{Abs\_Log\_Diff}}{\text{Max\_Abs\_Log\_Diff}} \right) \times 100 $$
+                    
+                * A score of **100** indicates that the log-transformed expression levels are identical (perfect similarity).
+                * A score closer to **0** indicates a large difference in log-transformed expression levels (low similarity).
+                
+                This score provides a robust way to compare expression levels, as it focuses on proportional changes rather than absolute differences, which is often more biologically meaningful for gene expression data.
+                """)
+
+            else:
+                st.info("No common genes found between averaged somatic data and the selected germline dataset for comparison.")
 
 
 # --- Main Visualization Page ---
@@ -1349,6 +1498,12 @@ def gene_group_comparisons_page():
         st.warning("No single-cell processed data files found or loaded for group comparisons.")
         return
 
+    all_sc_datasets_flat = {}
+    for category, datasets in SINGLE_CELL_FILES_DISPLAY_MAP.items():
+        all_sc_datasets_flat.update(datasets)
+
+    sc_dataset_display_names = list(all_sc_datasets_flat.keys())
+
     # 3.1. FEATURE: Dynamic Group Table Generator
     st.subheader("Dynamic Group Table Generator")
     st.write("Select multiple single-cell datasets to compare their gene group assignments with the Early Embryo dataset.")
@@ -1384,8 +1539,12 @@ def gene_group_comparisons_page():
 
             # Collect data for selected single-cell datasets
             for dataset_name in selected_datasets_for_table:
-                # Retrieve sc_df safely from the nested dictionary
-                sc_df = single_cell_dataframes.get(selected_category_dynamic, {}).get(dataset_name)
+                # Retrieve sc_df safely
+                sc_df = None
+                if dataset_name in single_cell_dataframes.get("Germ Cells", {}):
+                    sc_df = single_cell_dataframes["Germ Cells"][dataset_name]
+                elif dataset_name in single_cell_dataframes.get("Somatic Cells", {}):
+                    sc_df = single_cell_dataframes["Somatic Cells"][dataset_name]
 
                 if sc_df is not None and not sc_df.empty: # Check if DataFrame is not empty
                     # Ensure column names are consistent for merging
@@ -1623,7 +1782,7 @@ def raw_data_page():
             dataset_options_raw = list(single_cell_dataframes[selected_category_raw].keys())
             selected_single_cell_dataset = st.selectbox(
                 f"Select {selected_category_raw} Dataset:",
-                dataset_options_raw,
+                datasets_in_selected_category, # Changed to datasets_in_selected_category
                 key="single_cell_dataset_select"
             )
             if selected_single_cell_dataset:
