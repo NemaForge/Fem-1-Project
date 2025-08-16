@@ -1013,8 +1013,8 @@ def processed_data_table_page():
                 This score provides a robust way to compare expression levels, as it focuses on proportional changes rather than absolute differences, which is often more biologically meaningful for gene expression data.
                 """)
 
-            else:
-            st.info("No common genes found between averaged somatic data and the selected germline dataset for comparison.")
+                else:
+                    st.info("No common genes found between averaged somatic data and the selected germline dataset for comparison.")
 
 
 # --- New Rocket Plots Page ---
@@ -1856,3 +1856,4 @@ elif st.session_state.page == "gene_group_comparisons":
     gene_group_comparisons_page()
 elif st.session_state.page == "raw_data":
     raw_data_page()
+
