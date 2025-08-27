@@ -2020,4 +2020,4 @@ elif st.session_state.page == "raw_data":
     raw_data_page()
 elif st.session_state.page == "germline_enriched_comparisons":
     germline_enriched_comparisons_page()
-�
+
