@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import os
 import numpy as np
 
+# Set Streamlit page configuration
 st.set_page_config(
     page_title="Saurish and Xander's Biomart",
     page_icon="🧬",
@@ -12,6 +13,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Define file paths and constants
 input_file_path = "AnalysisFile2.txt"
 
 SINGLE_CELL_FILES_DISPLAY_MAP = {
@@ -59,7 +61,7 @@ SINGLE_CELL_FILES_DISPLAY_MAP = {
         "PLN": "PLN.txt", "pm1_pm2 (pharyngeal muscle)": "pm1_pm2 (pharyngeal muscle).txt",
         "pm3_pm4_pm5 (pharyngeal muscle)": "pm3_pm4_pm5 (pharyngeal muscle).txt",
         "pm6_pm7 (pharyngeal muscle)": "pm6_pm7 (pharyngeal muscle).txt", "PVC": "PVC.txt",
-        "PVD_FLP": "PVD_FLP.txt", "PVM": "PVM.txt", "PVN": "PVN.txt", "PVP": "PVP.txt", "PVQ": "PVQ.PVQ.txt",
+        "PVD_FLP": "PVD_FLP.txt", "PVM": "PVM.txt", "PVN": "PVN.txt", "PVP": "PVP.txt", "PVQ": "PVQ.txt",
         "PVR": "PVR.txt", "PVT": "PVT.txt", "PVW": "PVW.txt", "Rectal gland": "Rectal gland.txt",
         "RIA": "RIA.txt", "RIB": "RIB.txt", "RIC": "RIC.txt", "RID": "RID.txt", "RIF": "RIF.txt",
         "RIG": "RIG.txt", "RIH": "RIH.txt", "RIM": "RIM.txt", "RIP": "RIP.txt", "RIR": "RIR.txt",
@@ -89,21 +91,27 @@ SINGLE_CELL_FILES_DISPLAY_MAP = {
     }
 }
 
+
+# Plotting constants
 regular_dot_size = 5
 fem1_dot_size = 10
 
+# Helper function to highlight 'fem-1' gene in DataFrames
 def highlight_fem1_row(row):
+    """
+    Applies CSS styling to highlight rows where the gene name is 'fem-1'.
+    """
     styles = [''] * len(row)
-    if 'Gene Name' in row.index and row['Gene Name'] == 'fem-1':
-        styles = ['background-color: #FFDDDD; font-weight: bold; color: red;'] * len(row)
-    elif 'gene name' in row.index and row['gene name'] == 'fem-1':
-        styles = ['background-color: #FFDDDD; font-weight: bold; color: red;'] * len(row)
-    elif 'gene_common' in row.index and row['gene_common'] == 'fem-1':
+    if ('Gene Name' in row.index and row['Gene Name'] == 'fem-1') or \
+       ('gene name' in row.index and row['gene name'] == 'fem-1') or \
+       ('gene_common' in row.index and row['gene_common'] == 'fem-1'):
         styles = ['background-color: #FFDDDD; font-weight: bold; color: red;'] * len(row)
     return styles
 
+# Data loading and caching functions
 @st.cache_data
 def load_original_data(path):
+    """Loads and caches the original data from a tab-separated file."""
     try:
         df_loaded = pd.read_csv(path, sep='\t')
         for col in ['Mean of Geneid Strains', 'Standard Deviation of Geneid Strains', 'Group']:
@@ -120,6 +128,7 @@ def load_original_data(path):
 
 @st.cache_data
 def load_single_cell_dataframes_original_structure():
+    """Loads and caches all single-cell dataframes from the defined map."""
     all_single_cell_dfs = {}
     for category, files_map in SINGLE_CELL_FILES_DISPLAY_MAP.items():
         category_dfs = {}
@@ -148,11 +157,14 @@ def load_single_cell_dataframes_original_structure():
         all_single_cell_dfs[category] = category_dfs
     return all_single_cell_dfs
 
+# Load dataframes at the start of the app
 df_original = load_original_data(input_file_path)
 fem1_data_original = df_original[df_original['Gene Name'] == 'fem-1']
 single_cell_dataframes = load_single_cell_dataframes_original_structure()
 
+# Helper functions for data manipulation
 def get_sorted_groups(df, group_col):
+    """Sorts unique group names, handling numeric and non-numeric values."""
     if df.empty or group_col not in df.columns:
         return []
     try:
@@ -171,6 +183,7 @@ def get_sorted_groups(df, group_col):
         return sorted(df[group_col].dropna().astype(str).unique())
 
 def create_aggregated_hover_data_flexible(df_to_process, gene_col, mean_col, std_dev_col, group_col, round_decimals=3):
+    """Creates aggregated hover text for plotly plots."""
     if df_to_process.empty:
         return pd.DataFrame(columns=[mean_col, std_dev_col, group_col, 'Aggregated Hover Text'])
 
@@ -196,7 +209,35 @@ def create_aggregated_hover_data_flexible(df_to_process, gene_col, mean_col, std
     return grouped
 
 
+def calculate_log2_averaged_tpm(category_name, all_single_cell_dfs):
+    """
+    Calculates the average log2-transformed TPM values for all genes within a given category.
+    """
+    category_files_dfs = all_single_cell_dfs.get(category_name, {})
+    gene_tpm_values = {}
+    
+    for display_name, df_sc in category_files_dfs.items():
+        if not df_sc.empty and 'gene name' in df_sc.columns and 'Scaled_TPM' in df_sc.columns:
+            for _, row in df_sc.iterrows():
+                gene_name = row['gene name']
+                scaled_tpm = row['Scaled_TPM']
+                if pd.notna(scaled_tpm):
+                    if gene_name not in gene_tpm_values:
+                        gene_tpm_values[gene_name] = []
+                    gene_tpm_values[gene_name].append(scaled_tpm)
+    
+    averaged_log2_tpm = []
+    for gene, tpms in gene_tpm_values.items():
+        if tpms:
+            avg_tpm = np.mean(tpms)
+            log2_avg_tpm = np.log2(avg_tpm + 1)
+            averaged_log2_tpm.append({'gene_common': gene, 'log2_tpm': log2_avg_tpm, 'avg_tpm': avg_tpm})
+    
+    return pd.DataFrame(averaged_log2_tpm)
+
+# Plotting functions
 def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_col, mean_col, std_dev_col, group_col, group_color_map):
+    """Plots gene expression for a given dataset with three sub-plots."""
     st.subheader(f"{plot_title_prefix}: All Genes Across All Groups")
     st.write(f"This plot shows the {mean_col} vs {std_dev_col} for all genes, categorized by their assigned group. Hover over a point to see all overlapping Gene Names and their data.")
 
@@ -430,6 +471,7 @@ def plot_gene_expression_set(df_data, fem1_data_subset, plot_title_prefix, gene_
 
 
 def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_prefix, gene_col, tpm_col, group_col, group_color_map):
+    """Plots a single-cell expression distribution as a line graph."""
     st.subheader(f"{plot_title_prefix}: All Genes (Sorted by {tpm_col})")
     st.write(f"This line graph shows {tpm_col} for all genes, sorted by expression, with points color-coded by their assigned group. Zoom in to see individual gene points.")
     
@@ -512,8 +554,71 @@ def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_
 
     st.markdown("---")
 
+def plot_log2_scatter_with_line(df_to_plot, x_col, y_col, x_title, y_title, plot_title, b_value=None):
+    """Plots a log2-transformed scatter plot with a y=x+b line."""
+    fig = go.Figure()
 
+    fig.add_trace(go.Scatter(
+        x=df_to_plot[x_col],
+        y=df_to_plot[y_col],
+        mode='markers',
+        marker=dict(size=regular_dot_size, color='blue'),
+        name='Genes',
+        hoverinfo='text',
+        text=[
+            f"<b>{row['gene_common']}</b><br>{x_title}: {row[x_col]:.2f}<br>{y_title}: {row[y_col]:.2f}"
+            for idx, row in df_to_plot.iterrows()
+        ],
+        hovertemplate='%{text}<extra></extra>'
+    ))
+
+    fem1_data = df_to_plot[df_to_plot['gene_common'] == 'fem-1']
+    if not fem1_data.empty:
+        fem1_hover_text = (
+            f"<b>{fem1_data['gene_common'].iloc[0]}</b><br>{x_title}: {fem1_data[x_col].iloc[0]:.2f}"
+            f"<br>{y_title}: {fem1_data[y_col].iloc[0]:.2f}<br>HIGHLIGHTED"
+        )
+        fig.add_trace(go.Scatter(
+            x=fem1_data[x_col],
+            y=fem1_data[y_col],
+            mode='markers',
+            marker=dict(size=fem1_dot_size, color='red', symbol='circle', line=dict(width=2, color='DarkRed')),
+            name='fem-1',
+            hoverinfo='text',
+            text=[fem1_hover_text],
+            hovertemplate='%{text}<extra></extra>'
+        ))
+    
+    if b_value is not None:
+        x_min, x_max = df_to_plot[x_col].min(), df_to_plot[x_col].max()
+        x_range = np.linspace(x_min, x_max, 100)
+        y_line = x_range + b_value
+        fig.add_trace(go.Scatter(
+            x=x_range,
+            y=y_line,
+            mode='lines',
+            line=dict(color='red', width=2, dash='dash'),
+            name=f'y = x + {b_value}',
+            hoverinfo='none'
+        ))
+
+    fig.update_layout(
+        title=plot_title,
+        xaxis_title=x_title,
+        yaxis_title=y_title,
+        font_family="Times New Roman",
+        title_font_size=20,
+        xaxis_title_font_size=14,
+        yaxis_title_font_size=14,
+        width=900,
+        height=700,
+        hovermode='closest'
+    )
+    st.plotly_chart(fig)
+
+# Page functions
 def home_page():
+    """Displays the main landing page with a single button to the Data Analysis Hub."""
     st.markdown("""
     <style>
         .stApp {
@@ -800,6 +905,7 @@ def home_page():
 
 
 def data_analysis_hub():
+    """A central hub page for navigating all analysis tools and visualizations."""
     st.header("Data Analysis Hub")
     st.write("Navigate to the different analysis tools and data pages.")
     
@@ -820,6 +926,9 @@ def data_analysis_hub():
         if st.button("📊 Gene Group Comparisons SC+EE", key="gene_group_comparisons_btn"):
             st.session_state.page = "gene_group_comparisons"
             st.rerun()
+        if st.button("🧬 Germline Enriched Gene Group Comparisons", key="germline_enriched_btn"):
+            st.session_state.page = "germline_enriched_comparisons"
+            st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
@@ -828,7 +937,7 @@ def data_analysis_hub():
         if st.button("📈 SC+EE Data Visualizations", key="sc_ee_viz_btn"):
             st.session_state.page = "visualizations"
             st.rerun()
-        if st.button("🚀 Rocket Plots Somatic vs. Germline", key="rocket_plots_btn_hub"):
+        if st.button("🚀 Germline Enriched Visualizations", key="rocket_plots_btn_hub"):
             st.session_state.page = "rocket_plots"
             st.rerun()
         if st.button("🔄 Comparison SC+EE Visualizations", key="comparison_viz_btn"):
@@ -837,162 +946,19 @@ def data_analysis_hub():
         st.markdown('</div>', unsafe_allow_html=True)
 
 
-def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_prefix, gene_col, tpm_col, group_col, group_color_map):
-    st.subheader(f"{plot_title_prefix}: All Genes (Sorted by {tpm_col})")
-    st.write(f"This line graph shows {tpm_col} for all genes, sorted by expression, with points color-coded by their assigned group. Zoom in to see individual gene points.")
-    
-    df_data_sc_filtered = df_data_sc[df_data_sc[tpm_col] > 1e-10].copy()
-    
-    df_sorted_by_tpm = df_data_sc_filtered.sort_values(by=tpm_col, ascending=True).reset_index(drop=True)
-    
-    removed_gene_name_plot_sc = None
-    removed_gene_tpm_value_plot_sc = None
-
-    if not df_sorted_by_tpm.empty and tpm_col in df_sorted_by_tpm.columns:
-        df_for_outlier_check_sc = df_sorted_by_tpm[df_sorted_by_tpm[gene_col] != 'fem-1'].copy()
-        if not df_for_outlier_check_sc.empty and pd.to_numeric(df_for_outlier_check_sc[tpm_col], errors='coerce').notna().any():
-            max_tpm_gene_row_sc = df_for_outlier_check_sc.loc[pd.to_numeric(df_for_outlier_check_sc[tpm_col], errors='coerce').idxmax()]
-            removed_gene_name_plot_sc = max_tpm_gene_row_sc[gene_col]
-            removed_gene_tpm_value_plot_sc = float(max_tpm_gene_row_sc[tpm_col])
-            df_sorted_by_tpm = df_sorted_by_tpm[df_sorted_by_tpm[gene_col] != removed_gene_name_plot_sc].copy()
-
-    fig_sc = go.Figure()
-    jitter_scale = 0.05
-
-    for group_name_sc in get_sorted_groups(df_sorted_by_tpm, group_col):
-        group_df_sc = df_sorted_by_tpm[df_sorted_by_tpm[group_col] == group_name_sc]
-        if not group_df_sc.empty:
-            y_jittered = np.random.uniform(-jitter_scale, jitter_scale, size=len(group_df_sc))
-            fig_sc.add_trace(go.Scatter(
-                x=group_df_sc[tpm_col],
-                y=y_jittered,
-                mode='markers',
-                name=f'Group {group_name_sc}',
-                marker=dict(size=regular_dot_size, color=group_color_map.get(str(group_name_sc), 'lightgray')),
-                hoverinfo='text',
-                text=[
-                    f"<b>{row[gene_col]}</b><br>{tpm_col}: {float(row[tpm_col]):.2f}<br>Group: {row[group_col]}"
-                    for idx, row in group_df_sc.iterrows()
-                ],
-                hovertemplate='%{text}<extra></extra>'
-            ))
-
-    fem1_in_sorted_sc = df_sorted_by_tpm[df_sorted_by_tpm[gene_col] == 'fem-1']
-    if not fem1_in_sorted_sc.empty:
-        fem1_hover_text_sc = (
-            f"<b>{fem1_in_sorted_sc[gene_col].iloc[0]}</b>"
-            f"<br>{tpm_col}: {float(fem1_in_sorted_sc[tpm_col].iloc[0]):.2f}"
-            f"<br>Group: {fem1_in_sorted_sc[group_col].iloc[0]}"
-        )
-        fem1_y_jittered = np.random.uniform(-jitter_scale, jitter_scale, size=len(fem1_in_sorted_sc))
-        fig_sc.add_trace(go.Scatter(
-            x=fem1_in_sorted_sc[tpm_col],
-            y=fem1_y_jittered,
-            mode='markers',
-            marker=dict(size=fem1_dot_size, color='red', symbol='circle', line=dict(width=2, color='DarkRed')),
-            name='fem-1',
-            hoverinfo='text',
-            text=[fem1_hover_text_sc],
-            hovertemplate='%{text}<extra></extra>'
-        ))
-    
-    fig_sc.update_layout(
-        title=f'{plot_title_prefix} Genes: {tpm_col} Distribution',
-        xaxis_title=tpm_col,
-        yaxis_title='',
-        yaxis_showticklabels=False,
-        font_family="Times New Roman",
-        title_font_size=20,
-        xaxis_title_font_size=14,
-        xaxis_type='log',
-        xaxis_exponentformat='power',
-        xaxis_showexponent='all',
-        xaxis_tickformat='e',
-        xaxis_tickangle=90,
-        width=1200,
-        height=300,
-        legend_title_text='Group',
-        yaxis_range=[-jitter_scale * 1.5, jitter_scale * 1.5]
-    )
-    st.plotly_chart(fig_sc)
-    if removed_gene_name_plot_sc:
-        st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_plot_sc}</b> ({tpm_col}: {removed_gene_tpm_value_plot_sc:.2f}) was removed to improve plot clarity as it was the single highest outlier in "{tpm_col}".</p>', unsafe_allow_html=True)
-
-    st.markdown("---")
-
-
-def original_data_landing_page():
-    st.header("Original Data: Tables & Visualizations")
-    st.write("Choose how you'd like to explore the early embryo data.")
-
-    if st.button("🏠 Back to Home", key="original_landing_back_home"):
-        st.session_state.page = "home"
-        st.rerun()
-
-    st.markdown("---")
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
-        if st.button("🔍 Raw Data", key="view_raw_data_tables", help="Browse the raw 'AnalysisFile2.txt' data."):
-            st.session_state.page = "raw_data"
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with col2:
-        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
-        if st.button("📈 Visualizations", key="view_visualizations", help="See plots and graphs generated from the 'AnalysisFile2.txt' data."):
-            st.session_state.page = "visualizations"
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with col3:
-        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
-        if st.button("🔄 Comparisons", key="view_comparisons", help="Compare gene expression across different datasets."):
-            st.session_state.page = "comparison_landing"
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-
-def processed_data_landing_page():
-    st.header("Processed Data Analysis")
-    st.write("This section is dedicated to processed data, such as single-cell RNA sequencing analysis.")
-
-    if st.button("🏠 Back to Home", key="processed_landing_back_home"):
-        st.session_state.page = "home"
-        st.rerun()
-
-    st.markdown("---")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
-        if st.button("🔍 Data", key="processed_data_table_btn", help="View and compare processed data tables."):
-            st.session_state.page = "processed_data_table"
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with col2:
-        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
-        if st.button("📈 Visualizations", key="processed_data_viz_btn", help="View visualizations of processed data."):
-            st.session_state.page = "visualizations"
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
 def processed_data_table_page():
+    """Displays data comparison tables for processed single-cell data."""
     st.header("Processed Data: Data Tables")
     st.write("Compare averaged somatic cell data with individual germline single-cell datasets.")
 
-    if st.button("🏠 Back to Processed Data", key="processed_data_table_back"):
-        st.session_state.page = "processed_data_landing"
+    if st.button("🏠 Back to Data Analysis Hub", key="processed_data_table_back"):
+        st.session_state.page = "data_analysis_hub"
         st.rerun()
 
     st.markdown("---")
 
     somatic_genes_data = {}
-    for dataset_name, filename in SINGLE_CELL_FILES_DISPLAY_MAP["Somatic Cells"].items():
+    for dataset_name in SINGLE_CELL_FILES_DISPLAY_MAP["Somatic Cells"]:
         sc_df = single_cell_dataframes.get("Somatic Cells", {}).get(dataset_name)
         if sc_df is not None and not sc_df.empty:
             for _, row in sc_df.iterrows():
@@ -1100,11 +1066,12 @@ def processed_data_table_page():
 
 
 def rocket_plots_page():
-    st.header("Rocket Plots: Log2 Single-Cell Comparisons 🚀")
+    """Displays log2-log2 comparison scatter plots."""
+    st.header("Germline Enriched Visualizations 🚀")
     st.write("Explore gene expression by comparing log-transformed average TPM values between different cell types. The axes are in log2 scale.")
 
-    if st.button("🏠 Back to Home", key="rocket_plots_back_home"):
-        st.session_state.page = "home"
+    if st.button("🏠 Back to Data Analysis Hub", key="rocket_plots_back_home"):
+        st.session_state.page = "data_analysis_hub"
         st.rerun()
 
     st.markdown("---")
@@ -1112,30 +1079,6 @@ def rocket_plots_page():
     if not single_cell_dataframes.get("Somatic Cells") or not single_cell_dataframes.get("Germ Cells"):
         st.warning("Single-cell data files are missing. Please ensure all somatic and germline files are in the same directory as this script.")
         return
-
-    @st.cache_data
-    def calculate_log2_averaged_tpm(category_name, all_single_cell_dfs):
-        category_files_dfs = all_single_cell_dfs.get(category_name, {})
-        gene_tpm_values = {}
-    
-        for display_name, df_sc in category_files_dfs.items():
-            if not df_sc.empty and 'gene name' in df_sc.columns and 'Scaled_TPM' in df_sc.columns:
-                for _, row in df_sc.iterrows():
-                    gene_name = row['gene name']
-                    scaled_tpm = row['Scaled_TPM']
-                    if pd.notna(scaled_tpm):
-                        if gene_name not in gene_tpm_values:
-                            gene_tpm_values[gene_name] = []
-                        gene_tpm_values[gene_name].append(scaled_tpm)
-    
-        averaged_log2_tpm = []
-        for gene, tpms in gene_tpm_values.items():
-            if tpms:
-                avg_tpm = np.mean(tpms)
-                log2_avg_tpm = np.log2(avg_tpm + 1)
-                averaged_log2_tpm.append({'gene_common': gene, 'log2_tpm': log2_avg_tpm, 'avg_tpm': avg_tpm})
-    
-        return pd.DataFrame(averaged_log2_tpm)
 
     df_avg_somatic = calculate_log2_averaged_tpm("Somatic Cells", single_cell_dataframes)
     df_avg_somatic.rename(columns={'log2_tpm': 'log2_tpm_somatic', 'avg_tpm': 'avg_tpm_somatic'}, inplace=True)
@@ -1373,11 +1316,12 @@ def rocket_plots_page():
 
 
 def visualizations_page():
+    """Displays visualizations for Early Embryo and Single-Cell data."""
     st.header("Gene Expression Visualizations")
     st.write("Explore gene expression patterns through interactive scatter plots.")
 
-    if st.button("🏠 Back to Home", key="viz_back_home"):
-        st.session_state.page = "home"
+    if st.button("🏠 Back to Data Analysis Hub", key="viz_back_home"):
+        st.session_state.page = "data_analysis_hub"
         st.rerun()
     
     st.markdown("---")
@@ -1455,11 +1399,12 @@ def visualizations_page():
 
 
 def comparison_graphs_viz_page():
+    """Displays scatter plots comparing Early Embryo and single-cell gene expression."""
     st.header("Gene Expression Comparison Graphs: Visualizations")
     st.write("Compare gene expression between the 'Early Embryo' dataset and a selected single-cell dataset.")
 
-    if st.button("🏠 Back to Comparison Tools", key="comp_viz_back_home"):
-        st.session_state.page = "comparison_landing"
+    if st.button("🏠 Back to Data Analysis Hub", key="comp_viz_back_home"):
+        st.session_state.page = "data_analysis_hub"
         st.rerun()
     
     st.markdown("---")
@@ -1661,39 +1606,13 @@ def comparison_graphs_viz_page():
         else:
             st.warning(f"Gene '{search_gene_comp}' not found in common genes for comparison.")
 
-def comparison_landing_page():
-    st.header("Comparison Tools")
-    st.write("Select a comparison tool to analyze gene expression across datasets.")
-
-    if st.button("🏠 Back to Home", key="comp_landing_back_home"):
-        st.session_state.page = "home"
-        st.rerun()
-
-    st.markdown("---")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
-        if st.button("📈 Visualizations", key="comp_viz_btn", help="View scatter plots comparing gene expression."):
-            st.session_state.page = "comparison_graphs_viz"
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with col2:
-        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
-        if st.button("📊 Gene Group Comparisons", key="comp_group_btn", help="Compare gene group assignments across datasets."):
-            st.session_state.page = "gene_group_comparisons"
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-
 def gene_group_comparisons_page():
+    """Displays a table comparing gene groups between datasets."""
     st.header("Gene Group Comparisons")
     st.write("Compare gene group assignments between the Early Embryo dataset and selected single-cell datasets.")
 
-    if st.button("🏠 Back to Comparison Tools", key="gene_group_comp_back_home"):
-        st.session_state.page = "comparison_landing"
+    if st.button("🏠 Back to Data Analysis Hub", key="gene_group_comp_back_home"):
+        st.session_state.page = "data_analysis_hub"
         st.rerun()
 
     st.markdown("---")
@@ -1701,10 +1620,6 @@ def gene_group_comparisons_page():
     if not single_cell_dataframes:
         st.warning("No single-cell processed data files found or loaded for group comparisons.")
         return
-
-    all_sc_datasets_flat = {}
-    for category, datasets in SINGLE_CELL_FILES_DISPLAY_MAP.items():
-        all_sc_datasets_flat.update(datasets)
 
     st.subheader("Dynamic Group Table Generator")
     st.write("Select multiple single-cell datasets to compare their gene group assignments with the Early Embryo dataset.")
@@ -1766,150 +1681,17 @@ def gene_group_comparisons_page():
         else:
             st.info("Please select at least one dataset to generate the table.")
 
-    st.markdown("---")
-
-    st.subheader("fem-1 Focused Group Comparison")
-    st.write("Compare genes overlapping with fem-1's group in Early Embryo and a selected single-cell dataset.")
-
-    category_options_fem1 = list(SINGLE_CELL_FILES_DISPLAY_MAP.keys())
-    selected_category_fem1 = st.selectbox(
-        "Choose a Data Category for fem-1 Focus:",
-        category_options_fem1,
-        key="selected_category_fem1_focus"
-    )
-
-    selected_dataset_for_fem1_focus = None
-    if selected_category_fem1:
-        datasets_in_selected_category_fem1 = list(SINGLE_CELL_FILES_DISPLAY_MAP[selected_category_fem1].keys())
-        selected_dataset_for_fem1_focus = st.selectbox(
-            f"Select ONE {selected_category_fem1} Dataset for fem-1 Focus:",
-            [""] + datasets_in_selected_category_fem1,
-            key="selected_dataset_for_fem1_focus_dataset"
-        )
-
-    if selected_dataset_for_fem1_focus:
-        sc_df_fem1_focus = single_cell_dataframes.get(selected_category_fem1, {}).get(selected_dataset_for_fem1_focus)
-        
-        if sc_df_fem1_focus is None or sc_df_fem1_focus.empty:
-            st.warning(f"Data for '{selected_dataset_for_fem1_focus}' could not be loaded or is empty for fem-1 comparison.")
-        else:
-            fem1_ee_group = df_original[df_original['Gene Name'] == 'fem-1']['Group'].iloc[0] if 'fem-1' in df_original['Gene Name'].values else None
-            fem1_sc_group = sc_df_fem1_focus[sc_df_fem1_focus['gene name'] == 'fem-1']['group number'].iloc[0] if 'fem-1' in sc_df_fem1_focus['gene name'].values else None
-
-            if fem1_ee_group is None or fem1_sc_group is None:
-                st.warning(f"fem-1 group not found in one or both selected datasets.")
-            else:
-                st.info(f"fem-1 is in Group **{fem1_ee_group}** in Early Embryo and Group **{fem1_sc_group}** in {selected_dataset_for_fem1_focus}.")
-
-                ee_fem1_group_genes = df_original[df_original['Group'] == fem1_ee_group]['Gene Name'].tolist()
-                sc_fem1_group_genes = sc_df_fem1_focus[sc_df_fem1_focus['group number'] == fem1_sc_group]['gene name'].tolist()
-
-                overlapping_genes = list(set(ee_fem1_group_genes) & set(sc_fem1_group_genes))
-                
-                if 'fem-1' in ee_fem1_group_genes and 'fem-1' in sc_fem1_group_genes and 'fem-1' not in overlapping_genes:
-                    overlapping_genes.append('fem-1')
-
-                if not overlapping_genes:
-                    st.info("No overlapping genes found between fem-1's groups in the selected datasets.")
-                else:
-                    st.subheader("Overlapping Genes:")
-                    
-                    overlapping_df = pd.DataFrame({'Gene Name': sorted(overlapping_genes)})
-                    
-                    ee_expr_map = df_original.set_index('Gene Name').to_dict('index')
-                    sc_expr_map = sc_df_fem1_focus.set_index('gene name').to_dict('index')
-
-                    overlapping_df['Early Embryo Group'] = overlapping_df['Gene Name'].map(lambda x: ee_expr_map.get(x, {}).get('Group'))
-                    overlapping_df['Early Embryo Expression'] = overlapping_df['Gene Name'].map(lambda x: ee_expr_map.get(x, {}).get('Mean of Geneid Strains'))
-                    
-                    overlapping_df[f'{selected_dataset_for_fem1_focus} Group'] = overlapping_df['Gene Name'].map(lambda x: sc_expr_map.get(x, {}).get('group number'))
-                    overlapping_df[f'{selected_dataset_for_fem1_focus} Expression'] = overlapping_df['Gene Name'].map(lambda x: sc_expr_map.get(x, {}).get('Scaled_TPM'))
-                    
-                    st.dataframe(overlapping_df.style.apply(highlight_fem1_row, axis=1), use_container_width=True)
-
-                    st.subheader("Overlapping Genes Visualization")
-                    
-                    temp_merged_df = pd.merge(
-                        df_original[['Gene Name', 'Mean of Geneid Strains', 'Group']],
-                        sc_df_fem1_focus[['gene name', 'Scaled_TPM', 'group number']].rename(columns={'gene name': 'Gene Name'}),
-                        on='Gene Name',
-                        how='inner'
-                    )
-                    plot_data = temp_merged_df[temp_merged_df['Gene Name'].isin(overlapping_genes)].copy()
-                    
-                    plot_data = plot_data[(plot_data['Mean of Geneid Strains'] > 1e-10) & (plot_data['Scaled_TPM'] > 1e-10)]
-
-                    if not plot_data.empty:
-                        fig_overlap = go.Figure()
-
-                        fig_overlap.add_trace(go.Scatter(
-                            x=plot_data['Mean of Geneid Strains'],
-                            y=plot_data['Scaled_TPM'],
-                            mode='markers',
-                            name='Overlapping Genes',
-                            marker=dict(size=regular_dot_size, color='blue', symbol='circle'),
-                            hoverinfo='text',
-                            text=[
-                                f"<b>{row['Gene Name']}</b><br>EE Expr: {row['Mean of Geneid Strains']:.2f}<br>SC Expr: {row['Scaled_TPM']:.2f}"
-                                for idx, row in plot_data.iterrows()
-                            ],
-                            hovertemplate='%{text}<extra></extra>'
-                        ))
-
-                        fem1_overlap_data = plot_data[plot_data['Gene Name'] == 'fem-1']
-                        if not fem1_overlap_data.empty:
-                            fem1_hover_text_overlap = (
-                                f"<b>{fem1_overlap_data['Gene Name'].iloc[0]}</b>"
-                                f"<br>EE Expr: {float(fem1_overlap_data['Mean of Geneid Strains'].iloc[0]):.2f}"
-                                f"<br>SC Expr: {float(fem1_overlap_data['Scaled_TPM'].iloc[0]):.2f}"
-                                f"<br>HIGHLIGHTED"
-                            )
-                            fig_overlap.add_trace(go.Scatter(
-                                x=fem1_overlap_data['Mean of Geneid Strains'],
-                                y=fem1_overlap_data['Scaled_TPM'],
-                                mode='markers',
-                                marker=dict(size=fem1_dot_size, color='red', symbol='circle', line=dict(width=2, color='DarkRed')),
-                                name='fem-1',
-                                hoverinfo='text',
-                                text=[fem1_hover_text_overlap],
-                                hovertemplate='%{text}<extra></extra>'
-                            ))
-                        
-                        fig_overlap.update_layout(
-                            title=f'Overlapping Genes: Early Embryo vs. {selected_dataset_for_fem1_focus}',
-                            xaxis_title='Early Embryo Expression (Mean of Geneid Strains)',
-                            yaxis_title=f'{selected_dataset_for_fem1_focus} Expression (Scaled TPM)',
-                            font_family="Times New Roman",
-                            title_font_size=20,
-                            xaxis_title_font_size=14,
-                            yaxis_title_font_size=14,
-                            xaxis_type='log',
-                            yaxis_type='log',
-                            xaxis_exponentformat='power',
-                            xaxis_showexponent='all',
-                            xaxis_tickformat='e',
-                            yaxis_exponentformat='power',
-                            yaxis_showexponent='all',
-                            yaxis_tickformat='e',
-                            width=900,
-                            height=600,
-                            hovermode='closest',
-                            legend_title_text='Gene Type'
-                        )
-                        st.plotly_chart(fig_overlap)
-                    else:
-                        st.info("No data available to plot overlapping genes after filtering for non-zero expression.")
-
 
 def raw_data_page():
+    """Displays raw data tables and a gene search tool."""
     st.header("Raw Data - Gene Search Tool")
     st.write("This page allows you to view and search different gene expression datasets.")
     
     col_home, col_search_btn_placeholder = st.columns([0.15, 0.85])
 
     with col_home:
-        if st.button("🏠 Back to Home", key="raw_data_back_btn"):
-            st.session_state.page = "home"
+        if st.button("🏠 Back to Data Analysis Hub", key="raw_data_back_btn"):
+            st.session_state.page = "data_analysis_hub"
             st.rerun()
             
     st.markdown("---")
@@ -1970,14 +1752,7 @@ def raw_data_page():
             return
 
     if current_df is not None:
-        with col_search_btn_placeholder:
-            if 'show_search_interface' not in st.session_state:
-                st.session_state.show_search_interface = False
-            
-            if st.button("🔍 Toggle Search Interface", key="toggle_search_btn"):
-                st.session_state.show_search_interface = not st.session_state.show_search_interface
-        
-        if st.session_state.show_search_interface:
+        if st.session_state.get('show_search_interface', False):
             st.subheader("Perform a Search")
             search_type = st.radio(
                 "Select search type:",
@@ -2036,7 +1811,195 @@ def raw_data_page():
                         st.error(f"Invalid input. Please enter a numeric value for {mean_col_name}.")
                 else:
                     st.info(f"Enter an {mean_col_name} value to find closest genes.")
+        if st.button("🔍 Toggle Search Interface", key="toggle_search_btn"):
+            st.session_state.show_search_interface = not st.session_state.get('show_search_interface', False)
 
+
+def germline_enriched_comparisons_page():
+    """
+    New page to display germline enriched gene tables with dynamic filtering.
+    """
+    st.header("Germline Enriched Gene Group Comparisons")
+    st.write("Analyze genes that are highly expressed in germline cells compared to somatic cells.")
+
+    if st.button("🏠 Back to Data Analysis Hub", key="germline_comp_back_home"):
+        st.session_state.page = "data_analysis_hub"
+        st.rerun()
+
+    st.markdown("---")
+
+    if not single_cell_dataframes.get("Somatic Cells") or not single_cell_dataframes.get("Germ Cells"):
+        st.warning("Single-cell data files are missing. Cannot perform enriched gene comparisons.")
+        return
+
+    # Helper dataframes, same as rocket plots page
+    df_avg_somatic = calculate_log2_averaged_tpm("Somatic Cells", single_cell_dataframes)
+    df_avg_somatic.rename(columns={'log2_tpm': 'log2_tpm_somatic', 'avg_tpm': 'avg_tpm_somatic'}, inplace=True)
+    germline_datasets = list(SINGLE_CELL_FILES_DISPLAY_MAP["Germ Cells"].keys())
+    
+    st.subheader("High-Expression Germline Genes Table (Dynamic Threshold)")
+    st.write("This table shows genes with a user-defined log2 expression difference, indicating enriched expression in the selected germline cell type compared to average somatic cells.")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_germline_dataset_enriched = st.selectbox(
+            "Select Germline Cell Type:",
+            germline_datasets,
+            key="selected_germline_for_enriched_table"
+        )
+    with col2:
+        log2_diff_threshold = st.slider(
+            "Set minimum Log2 Expression Difference:",
+            min_value=0.0, max_value=5.0, value=2.0, step=0.1,
+            key="log2_diff_threshold"
+        )
+
+    if selected_germline_dataset_enriched:
+        sc_df_selected_enriched = single_cell_dataframes["Germ Cells"][selected_germline_dataset_enriched].copy()
+        sc_df_selected_enriched['log2_tpm_selected'] = np.log2(sc_df_selected_enriched['Scaled_TPM'] + 1)
+        sc_df_selected_enriched.rename(columns={'gene name': 'gene_common', 'Scaled_TPM': 'tpm_selected'}, inplace=True)
+        
+        merged_selected_df_enriched = pd.merge(
+            df_avg_somatic,
+            sc_df_selected_enriched[['gene_common', 'log2_tpm_selected', 'tpm_selected']],
+            on='gene_common',
+            how='inner'
+        )
+
+        if not merged_selected_df_enriched.empty:
+            merged_selected_df_enriched['log2_difference'] = merged_selected_df_enriched['log2_tpm_selected'] - merged_selected_df_enriched['log2_tpm_somatic']
+            
+            filtered_high_expression_df = merged_selected_df_enriched[merged_selected_df_enriched['log2_difference'] >= log2_diff_threshold].copy()
+            
+            if not filtered_high_expression_df.empty:
+                display_df = filtered_high_expression_df[['gene_common', 'tpm_selected', 'avg_tpm_somatic', 'log2_difference']].copy()
+                display_df.rename(columns={
+                    'gene_common': 'Gene Name',
+                    'tpm_selected': f'TPM in {selected_germline_dataset_enriched}',
+                    'avg_tpm_somatic': 'Average Somatic TPM',
+                    'log2_difference': 'Log2 Expression Difference (y-x)'
+                }, inplace=True)
+                
+                st.dataframe(display_df.sort_values('Log2 Expression Difference (y-x)', ascending=False).style.apply(highlight_fem1_row, axis=1), use_container_width=True)
+            else:
+                st.info(f"No genes met the criteria of having a log2 expression difference of {log2_diff_threshold} or greater.")
+        else:
+            st.info("No common genes found between selected datasets.")
+
+    st.markdown("---")
+
+    st.subheader("Overlapping Genes by Group & Enriched Expression (Dynamic Threshold)")
+    st.write("This table shows genes that belong to the same group as **fem-1** and are present in both selected cell types, with an adjustable minimum expression increase in the reference cell type compared to average somatic cells.")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        selected_ref_cell_enriched = st.selectbox(
+            "Reference Cell Type (for fem-1 group):",
+            germline_datasets,
+            key="selected_ref_cell_enriched"
+        )
+    with col2:
+        all_cell_types = list(SINGLE_CELL_FILES_DISPLAY_MAP["Germ Cells"].keys()) + list(SINGLE_CELL_FILES_DISPLAY_MAP["Somatic Cells"].keys())
+        selected_comp_cell_enriched = st.selectbox(
+            "Comparison Cell Type:",
+            all_cell_types,
+            key="selected_comp_cell_enriched"
+        )
+    with col3:
+        log2_diff_threshold_overlap = st.number_input(
+            "Set minimum Log2 Expression Difference:",
+            min_value=0.0, max_value=5.0, value=2.0, step=0.1,
+            key="log2_diff_threshold_overlap"
+        )
+
+    if selected_ref_cell_enriched and selected_comp_cell_enriched:
+        ref_df = single_cell_dataframes.get("Germ Cells", {}).get(selected_ref_cell_enriched)
+        if not ref_df:
+            ref_df = single_cell_dataframes.get("Somatic Cells", {}).get(selected_ref_cell_enriched)
+        comp_df = single_cell_dataframes.get("Germ Cells", {}).get(selected_comp_cell_enriched)
+        if not comp_df:
+            comp_df = single_cell_dataframes.get("Somatic Cells", {}).get(selected_comp_cell_enriched)
+        
+        if ref_df is None or comp_df is None:
+            st.warning("Could not load data for one or both selected cell types.")
+        else:
+            fem1_group = ref_df[ref_df['gene name'] == 'fem-1']['group number'].iloc[0] if 'fem-1' in ref_df['gene name'].values else None
+            
+            if fem1_group is None:
+                st.warning("fem-1 group not found in the reference cell type.")
+            else:
+                st.info(f"fem-1 is in Group **{fem1_group}** in the reference cell type.")
+                
+                ref_genes_in_group = ref_df[ref_df['group number'] == fem1_group].copy()
+                merged_dfs = pd.merge(
+                    ref_genes_in_group.rename(columns={'gene name': 'gene_common'}),
+                    comp_df.rename(columns={'gene name': 'gene_common'}),
+                    on='gene_common',
+                    how='inner'
+                )
+                
+                if not merged_dfs.empty:
+                    merged_dfs = pd.merge(
+                        merged_dfs,
+                        df_avg_somatic[['gene_common', 'avg_tpm_somatic', 'log2_tpm_somatic']],
+                        on='gene_common',
+                        how='inner'
+                    )
+
+                    merged_dfs['log2_ref_tpm'] = np.log2(merged_dfs['Scaled_TPM'] + 1)
+                    merged_dfs['log2_difference'] = merged_dfs['log2_ref_tpm'] - merged_dfs['log2_tpm_somatic']
+                    
+                    filtered_merged_dfs = merged_dfs[merged_dfs['log2_difference'] >= log2_diff_threshold_overlap].copy()
+
+                    if not filtered_merged_dfs.empty:
+                        display_table = filtered_merged_dfs[[
+                            'gene_common', 'group number_x', 'group number_y', 'Scaled_TPM_x', 'Scaled_TPM_y', 'avg_tpm_somatic', 'log2_difference'
+                        ]].copy()
+                        display_table.rename(columns={
+                            'gene_common': 'Gene Name',
+                            'group number_x': f'{selected_ref_cell_enriched} Group',
+                            'group number_y': f'{selected_comp_cell_enriched} Group',
+                            'Scaled_TPM_x': f'{selected_ref_cell_enriched} TPM',
+                            'Scaled_TPM_y': f'{selected_comp_cell_enriched} TPM',
+                            'avg_tpm_somatic': 'Average Somatic TPM',
+                            'log2_difference': 'Log2 Expression Difference (Ref - Avg Somatic)'
+                        }, inplace=True)
+                        
+                        st.dataframe(display_table.style.apply(highlight_fem1_row, axis=1), use_container_width=True)
+                    else:
+                        st.info("No overlapping genes met the criteria of the specified log2 expression difference.")
+                else:
+                    st.info(f"No genes were found in the same group as fem-1 in both '{selected_ref_cell_enriched}' and '{selected_comp_cell_enriched}'.")
+
+def comparison_landing_page():
+    """Page to choose between comparison visualizations and group tables."""
+    st.header("Comparison Tools")
+    st.write("Select a comparison tool to analyze gene expression across datasets.")
+
+    if st.button("🏠 Back to Data Analysis Hub", key="comp_landing_back_home"):
+        st.session_state.page = "data_analysis_hub"
+        st.rerun()
+
+    st.markdown("---")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
+        if st.button("📈 Visualizations", key="comp_viz_btn", help="View scatter plots comparing gene expression."):
+            st.session_state.page = "comparison_graphs_viz"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col2:
+        st.markdown('<div class="button-container" style="max-width: 250px;">', unsafe_allow_html=True)
+        if st.button("📊 Gene Group Comparisons", key="comp_group_btn", help="Compare gene group assignments across datasets."):
+            st.session_state.page = "gene_group_comparisons"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+
+# Main application routing
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
@@ -2054,3 +2017,5 @@ elif st.session_state.page == "gene_group_comparisons":
     gene_group_comparisons_page()
 elif st.session_state.page == "raw_data":
     raw_data_page()
+elif st.session_state.page == "germline_enriched_comparisons":
+    germline_enriched_comparisons_page()
