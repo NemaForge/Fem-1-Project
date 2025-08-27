@@ -124,7 +124,7 @@ def load_single_cell_dataframes_original_structure():
     for category, files_map in SINGLE_CELL_FILES_DISPLAY_MAP.items():
         category_dfs = {}
         for display_name, filename in files_map.items():
-            file_path = filename 
+            file_path = filename
             
             try:
                 df_sc = pd.read_csv(file_path, sep='\t')
@@ -755,16 +755,8 @@ def home_page():
 
         st.markdown('<div class="button-container">', unsafe_allow_html=True)
         
-        if st.button("📊 Original Data", key="original_data_btn", help="Access raw data tables and visualizations from the initial dataset."):
-            st.session_state.page = "original_data_landing"
-            st.rerun()
-
-        if st.button("✨ Processed Data", key="processed_data_btn", help="Explore processed single-cell data."):
-            st.session_state.page = "processed_data_landing"
-            st.rerun()
-
-        if st.button("🚀 Rocket Plots", key="rocket_plots_btn", help="Explore log-scale plots of single-cell data."):
-            st.session_state.page = "rocket_plots"
+        if st.button("📊 Data Analysis", key="data_analysis_btn", help="Access all data tables and visualizations."):
+            st.session_state.page = "data_analysis_hub"
             st.rerun()
             
         st.markdown('</div>', unsafe_allow_html=True)
@@ -805,6 +797,128 @@ def home_page():
         🧪 ⚗️ 🔬 🧬 📊 📈 🔍 ⚡ 🧫 🔭 ⚛️ 🌡️
     </div>
     """, unsafe_allow_html=True)
+
+
+def data_analysis_hub():
+    st.header("Data Analysis Hub")
+    st.write("Navigate to the different analysis tools and data pages.")
+    
+    if st.button("🏠 Back to Home", key="analysis_hub_back_home"):
+        st.session_state.page = "home"
+        st.rerun()
+    
+    st.markdown("---")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Data & Tables")
+        st.markdown('<div class="button-container" style="max-width: 300px;">', unsafe_allow_html=True)
+        if st.button("🔍 Raw Data Tables", key="raw_data_tables_btn"):
+            st.session_state.page = "raw_data"
+            st.rerun()
+        if st.button("📊 Gene Group Comparisons SC+EE", key="gene_group_comparisons_btn"):
+            st.session_state.page = "gene_group_comparisons"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col2:
+        st.subheader("Visualizations")
+        st.markdown('<div class="button-container" style="max-width: 300px;">', unsafe_allow_html=True)
+        if st.button("📈 SC+EE Data Visualizations", key="sc_ee_viz_btn"):
+            st.session_state.page = "visualizations"
+            st.rerun()
+        if st.button("🚀 Rocket Plots Somatic vs. Germline", key="rocket_plots_btn_hub"):
+            st.session_state.page = "rocket_plots"
+            st.rerun()
+        if st.button("🔄 Comparison SC+EE Visualizations", key="comparison_viz_btn"):
+            st.session_state.page = "comparison_graphs_viz"
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+
+def plot_single_cell_expression_set(df_data_sc, fem1_data_sc_subset, plot_title_prefix, gene_col, tpm_col, group_col, group_color_map):
+    st.subheader(f"{plot_title_prefix}: All Genes (Sorted by {tpm_col})")
+    st.write(f"This line graph shows {tpm_col} for all genes, sorted by expression, with points color-coded by their assigned group. Zoom in to see individual gene points.")
+    
+    df_data_sc_filtered = df_data_sc[df_data_sc[tpm_col] > 1e-10].copy()
+    
+    df_sorted_by_tpm = df_data_sc_filtered.sort_values(by=tpm_col, ascending=True).reset_index(drop=True)
+    
+    removed_gene_name_plot_sc = None
+    removed_gene_tpm_value_plot_sc = None
+
+    if not df_sorted_by_tpm.empty and tpm_col in df_sorted_by_tpm.columns:
+        df_for_outlier_check_sc = df_sorted_by_tpm[df_sorted_by_tpm[gene_col] != 'fem-1'].copy()
+        if not df_for_outlier_check_sc.empty and pd.to_numeric(df_for_outlier_check_sc[tpm_col], errors='coerce').notna().any():
+            max_tpm_gene_row_sc = df_for_outlier_check_sc.loc[pd.to_numeric(df_for_outlier_check_sc[tpm_col], errors='coerce').idxmax()]
+            removed_gene_name_plot_sc = max_tpm_gene_row_sc[gene_col]
+            removed_gene_tpm_value_plot_sc = float(max_tpm_gene_row_sc[tpm_col])
+            df_sorted_by_tpm = df_sorted_by_tpm[df_sorted_by_tpm[gene_col] != removed_gene_name_plot_sc].copy()
+
+    fig_sc = go.Figure()
+    jitter_scale = 0.05
+
+    for group_name_sc in get_sorted_groups(df_sorted_by_tpm, group_col):
+        group_df_sc = df_sorted_by_tpm[df_sorted_by_tpm[group_col] == group_name_sc]
+        if not group_df_sc.empty:
+            y_jittered = np.random.uniform(-jitter_scale, jitter_scale, size=len(group_df_sc))
+            fig_sc.add_trace(go.Scatter(
+                x=group_df_sc[tpm_col],
+                y=y_jittered,
+                mode='markers',
+                name=f'Group {group_name_sc}',
+                marker=dict(size=regular_dot_size, color=group_color_map.get(str(group_name_sc), 'lightgray')),
+                hoverinfo='text',
+                text=[
+                    f"<b>{row[gene_col]}</b><br>{tpm_col}: {float(row[tpm_col]):.2f}<br>Group: {row[group_col]}"
+                    for idx, row in group_df_sc.iterrows()
+                ],
+                hovertemplate='%{text}<extra></extra>'
+            ))
+
+    fem1_in_sorted_sc = df_sorted_by_tpm[df_sorted_by_tpm[gene_col] == 'fem-1']
+    if not fem1_in_sorted_sc.empty:
+        fem1_hover_text_sc = (
+            f"<b>{fem1_in_sorted_sc[gene_col].iloc[0]}</b>"
+            f"<br>{tpm_col}: {float(fem1_in_sorted_sc[tpm_col].iloc[0]):.2f}"
+            f"<br>Group: {fem1_in_sorted_sc[group_col].iloc[0]}"
+        )
+        fem1_y_jittered = np.random.uniform(-jitter_scale, jitter_scale, size=len(fem1_in_sorted_sc))
+        fig_sc.add_trace(go.Scatter(
+            x=fem1_in_sorted_sc[tpm_col],
+            y=fem1_y_jittered,
+            mode='markers',
+            marker=dict(size=fem1_dot_size, color='red', symbol='circle', line=dict(width=2, color='DarkRed')),
+            name='fem-1',
+            hoverinfo='text',
+            text=[fem1_hover_text_sc],
+            hovertemplate='%{text}<extra></extra>'
+        ))
+    
+    fig_sc.update_layout(
+        title=f'{plot_title_prefix} Genes: {tpm_col} Distribution',
+        xaxis_title=tpm_col,
+        yaxis_title='',
+        yaxis_showticklabels=False,
+        font_family="Times New Roman",
+        title_font_size=20,
+        xaxis_title_font_size=14,
+        xaxis_type='log',
+        xaxis_exponentformat='power',
+        xaxis_showexponent='all',
+        xaxis_tickformat='e',
+        xaxis_tickangle=90,
+        width=1200,
+        height=300,
+        legend_title_text='Group',
+        yaxis_range=[-jitter_scale * 1.5, jitter_scale * 1.5]
+    )
+    st.plotly_chart(fig_sc)
+    if removed_gene_name_plot_sc:
+        st.markdown(f'<p style="font-family:\'Times New Roman\', serif; font-size:11px; color:gray; text-align:center;">Note: The gene <b>{removed_gene_name_plot_sc}</b> ({tpm_col}: {removed_gene_tpm_value_plot_sc:.2f}) was removed to improve plot clarity as it was the single highest outlier in "{tpm_col}".</p>', unsafe_allow_html=True)
+
+    st.markdown("---")
 
 
 def original_data_landing_page():
@@ -1105,11 +1219,11 @@ def rocket_plots_page():
             st.error("Invalid input for 'b'. Please enter a number.")
     
     plot_log2_scatter_with_line(
-        merged_avg_df, 
-        'log2_tpm_somatic', 
-        'log2_tpm_germline', 
-        'Log2(Average Somatic TPM + 1)', 
-        'Log2(Average Germline TPM + 1)', 
+        merged_avg_df,
+        'log2_tpm_somatic',
+        'log2_tpm_germline',
+        'Log2(Average Somatic TPM + 1)',
+        'Log2(Average Germline TPM + 1)',
         'Average Somatic vs. Average Germline Expression',
         b_value=b_value_1
     )
@@ -1132,9 +1246,9 @@ def rocket_plots_page():
         sc_df_selected.rename(columns={'gene name': 'gene_common', 'Scaled_TPM': 'tpm_selected'}, inplace=True)
     
         merged_selected_df = pd.merge(
-            df_avg_somatic, 
-            sc_df_selected[['gene_common', 'log2_tpm_selected', 'tpm_selected']], 
-            on='gene_common', 
+            df_avg_somatic,
+            sc_df_selected[['gene_common', 'log2_tpm_selected', 'tpm_selected']],
+            on='gene_common',
             how='inner'
         )
 
@@ -1148,11 +1262,11 @@ def rocket_plots_page():
                 st.error("Invalid input for 'b'. Please enter a number.")
     
         plot_log2_scatter_with_line(
-            merged_selected_df, 
-            'log2_tpm_somatic', 
-            'log2_tpm_selected', 
-            'Log2(Average Somatic TPM + 1)', 
-            f'Log2({selected_germline_dataset} TPM + 1)', 
+            merged_selected_df,
+            'log2_tpm_somatic',
+            'log2_tpm_selected',
+            'Log2(Average Somatic TPM + 1)',
+            f'Log2({selected_germline_dataset} TPM + 1)',
             f'Average Somatic vs. {selected_germline_dataset} Expression',
             b_value=b_value_2
         )
@@ -1281,14 +1395,14 @@ def visualizations_page():
         st.write("These plots display gene expression patterns from the original 'AnalysisFile2.txt' dataset.")
         
         plot_gene_expression_set(
-            df_original, 
-            fem1_data_original, 
-            "Early Embryo", 
-            'Gene Name', 
-            'Mean of Geneid Strains', 
-            'Standard Deviation of Geneid Strains', 
+            df_original,
+            fem1_data_original,
+            "Early Embryo",
+            'Gene Name',
+            'Mean of Geneid Strains',
+            'Standard Deviation of Geneid Strains',
             'Group',
-            {str(g): px.colors.qualitative.Plotly[i % len(px.colors.qualitative.Plotly)] 
+            {str(g): px.colors.qualitative.Plotly[i % len(px.colors.qualitative.Plotly)]
              for i, g in enumerate(get_sorted_groups(df_original, 'Group'))}
         )
 
@@ -1456,7 +1570,7 @@ def comparison_graphs_viz_page():
                     ],
                     hovertemplate='%{text}<extra></extra>'
                 ))
-        
+    
     shapes = []
     early_embryo_groups_sorted_comp = get_sorted_groups(df_original, 'Group')
     for ee_group in early_embryo_groups_sorted_comp:
@@ -1928,16 +2042,12 @@ if "page" not in st.session_state:
 
 if st.session_state.page == "home":
     home_page()
-elif st.session_state.page == "original_data_landing":
-    original_data_landing_page()
-elif st.session_state.page == "processed_data_landing":
-    processed_data_landing_page()
+elif st.session_state.page == "data_analysis_hub":
+    data_analysis_hub()
 elif st.session_state.page == "visualizations":
     visualizations_page()
 elif st.session_state.page == "rocket_plots":
     rocket_plots_page()
-elif st.session_state.page == "comparison_landing":
-    comparison_landing_page()
 elif st.session_state.page == "comparison_graphs_viz":
     comparison_graphs_viz_page()
 elif st.session_state.page == "gene_group_comparisons":
