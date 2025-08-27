@@ -899,7 +899,7 @@ def home_page():
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("""
     <div style="text-align: center; opacity: 0.6;">
-        🧪 ⚗️ 🔬 🧬 📊 📈 🔍 ⚡ 🧫 🔭 ⚛️ 🌡️
+        🧪 ⚗️ 🔬 🧬 📊 📈 🔍 ⚡ 🧫 � ⚛️ 🌡️
     </div>
     """, unsafe_allow_html=True)
 
@@ -1258,14 +1258,14 @@ def rocket_plots_page():
 
         if selected_ref_cell and selected_comp_cell:
             ref_df = single_cell_dataframes.get("Germ Cells", {}).get(selected_ref_cell)
-            if not ref_df:
+            if ref_df is None or ref_df.empty:
                 ref_df = single_cell_dataframes.get("Somatic Cells", {}).get(selected_ref_cell)
             comp_df = single_cell_dataframes.get("Germ Cells", {}).get(selected_comp_cell)
-            if not comp_df:
+            if comp_df is None or comp_df.empty:
                 comp_df = single_cell_dataframes.get("Somatic Cells", {}).get(selected_comp_cell)
             
-            if ref_df is None or comp_df is None:
-                st.warning("Could not load data for one or both selected cell types.")
+            if ref_df is None or ref_df.empty or comp_df is None or comp_df.empty:
+                st.warning("Could not load data for one or both selected cell types, or the data is empty.")
             else:
                 fem1_group = ref_df[ref_df['gene name'] == 'fem-1']['group number'].iloc[0] if 'fem-1' in ref_df['gene name'].values else None
                 
@@ -1440,7 +1440,8 @@ def comparison_graphs_viz_page():
         st.info("Select a single-cell data category to perform comparison.")
         return
 
-    if sc_df_for_comparison is None:
+    if sc_df_for_comparison is None or sc_df_for_comparison.empty:
+        st.warning("No data found for the selected dataset.")
         return
 
     df_original_renamed = df_original.rename(columns={'Gene Name': 'gene_common'})
@@ -1914,14 +1915,14 @@ def germline_enriched_comparisons_page():
 
     if selected_ref_cell_enriched and selected_comp_cell_enriched:
         ref_df = single_cell_dataframes.get("Germ Cells", {}).get(selected_ref_cell_enriched)
-        if not ref_df:
+        if ref_df is None or ref_df.empty:
             ref_df = single_cell_dataframes.get("Somatic Cells", {}).get(selected_ref_cell_enriched)
         comp_df = single_cell_dataframes.get("Germ Cells", {}).get(selected_comp_cell_enriched)
-        if not comp_df:
+        if comp_df is None or comp_df.empty:
             comp_df = single_cell_dataframes.get("Somatic Cells", {}).get(selected_comp_cell_enriched)
         
-        if ref_df is None or comp_df is None:
-            st.warning("Could not load data for one or both selected cell types.")
+        if ref_df is None or ref_df.empty or comp_df is None or comp_df.empty:
+            st.warning("Could not load data for one or both selected cell types, or the data is empty.")
         else:
             fem1_group = ref_df[ref_df['gene name'] == 'fem-1']['group number'].iloc[0] if 'fem-1' in ref_df['gene name'].values else None
             
@@ -2019,3 +2020,4 @@ elif st.session_state.page == "raw_data":
     raw_data_page()
 elif st.session_state.page == "germline_enriched_comparisons":
     germline_enriched_comparisons_page()
+�
