@@ -899,7 +899,7 @@ def home_page():
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("""
     <div style="text-align: center; opacity: 0.6;">
-        🧪 ⚗️ 🔬 🧬 📊 📈 🔍 ⚡ 🧫 � ⚛️ 🌡️
+        🧪 ⚗️ 🔬 🧬 📊 📈 🔍 ⚡ 🧫 🔭 ⚛️ 🌡️
     </div>
     """, unsafe_allow_html=True)
 
@@ -2020,4 +2020,3 @@ elif st.session_state.page == "raw_data":
     raw_data_page()
 elif st.session_state.page == "germline_enriched_comparisons":
     germline_enriched_comparisons_page()
-
